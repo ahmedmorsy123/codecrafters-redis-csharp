@@ -1,45 +1,86 @@
+using codecrafters_redis.src;
+using codecrafters_redis.src.Commands;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 Console.WriteLine("Logs from your program will appear here!");
 
-// Uncomment the code below to pass the first stage
+var commandHandlers = new Dictionary<string, ICommand>(StringComparer.OrdinalIgnoreCase);
+
+Assembly.GetExecutingAssembly().GetTypes()
+    .Where(t => typeof(ICommand).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
+    .ToList()
+    .ForEach(t =>
+    {
+        var instance = (ICommand)Activator.CreateInstance(t)!;
+        commandHandlers[instance.Name] = instance;
+    });
+
+
 TcpListener server = new TcpListener(IPAddress.Any, 6379);
 server.Start();
+await AcceptClientsAsync(server, commandHandlers);
 
-// Outer loop keeps the server alive and accepts multiple clients
-while (true)
+static async Task AcceptClientsAsync(TcpListener server, Dictionary<string, ICommand> commandHandlers)
 {
-    Socket client = await server.AcceptSocketAsync(); // wait for client
-    Console.Error.WriteLine("Client connected!");
-
-    // We process each client in a separate background task so the server can 
-    // go back to accepting new clients immediately.
-    _ = Task.Run(async () =>
+    // Outer loop keeps the server alive and accepts multiple clients
+    while (true)
     {
-        var buffer = new byte[1024]; // Larger buffer to fit full Redis commands
+        Socket client = await server.AcceptSocketAsync(); // wait for client
+        Console.Error.WriteLine("Client connected!");
 
-        // Inner loop keeps reading messages from this specific client
-        while (true)
-        {
-            int bytesRead = await client.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
-
-            if (bytesRead == 0)
-            {
-                // If 0 bytes are read, it means the client disconnected
-                Console.WriteLine("Client disconnected.");
-                break; 
-            }
-
-            string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            Console.Write($"Received: {message}");
-
-            // Send a response back to unblock the client.
-            // Redis protocol requires messages to end with \r\n
-            byte[] response = Encoding.UTF8.GetBytes("+PONG\r\n");
-            await client.SendAsync(new ArraySegment<byte>(response), SocketFlags.None);
-        }
-    });
+        // We process each client in a separate background task so the server can
+        // go back to accepting new clients immediately.
+        _ = Task.Run(() => HandleClientAsync(client, commandHandlers));
+    }
 }
+
+static async Task HandleClientAsync(Socket client, Dictionary<string, ICommand> commandHandlers)
+{
+    var buffer = new byte[1024]; // Larger buffer to fit full Redis commands
+
+    // Inner loop keeps reading messages from this specific client
+    while (true)
+    {
+        int bytesRead = await client.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
+
+        if (bytesRead == 0)
+        {
+            // If 0 bytes are read, it means the client disconnected
+            Console.WriteLine("Client disconnected.");
+            break;
+        }
+
+        string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        string responseText = await ProcessRequestAsync(message, commandHandlers);
+
+        byte[] response = Encoding.UTF8.GetBytes(responseText);
+        await client.SendAsync(new ArraySegment<byte>(response), SocketFlags.None);
+    }
+}
+
+static async Task<string> ProcessRequestAsync(string message, Dictionary<string, ICommand> commandHandlers)
+{
+    List<string> commands = await DecodeRESP.DecodeAsync(message);
+
+    Console.Error.WriteLine($"Received: {string.Join(", ", commands)}");
+
+    if (commands.Count == 0)
+    {
+        return "-ERR empty command\r\n";
+    }
+
+    string commandName = commands[0];
+    string[] args = commands.Skip(1).ToArray();
+
+    if (!commandHandlers.TryGetValue(commandName, out var handler))
+    {
+        return $"-ERR unknown command '{commandName}'\r\n";
+    }
+
+    return await handler.ExecuteAsync(args);
+}
+
