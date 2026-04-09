@@ -28,6 +28,11 @@ namespace codecrafters_redis.src
             return "$-1\r\n";
         }
 
+        public static string EncodeNullArray()
+        {
+            return "*-1\r\n";
+        }
+
         public static string EncodeError(string errorMessage)
         {
             return "-" + errorMessage + "\r\n";
