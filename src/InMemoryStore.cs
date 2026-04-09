@@ -40,7 +40,22 @@ namespace codecrafters_redis.src
             }
         }
 
-        // LRANGE 
+        public int GetListLength(string key)
+        {
+            lock (_syncRoot)
+            {
+                StoreEntry? entry = GetActiveEntry(key);
+                if (entry is null)
+                {
+                    return 0;
+                }
+                if (entry.Value.Type != RedisValueType.List)
+                {
+                    throw new InvalidOperationException(WrongTypeMessage);
+                }
+                return entry.Value.ListValue!.Count;
+            }
+        }
         public IReadOnlyList<string> GetListRange(string key, int start, int stop)
         {
             lock (_syncRoot)
@@ -76,7 +91,7 @@ namespace codecrafters_redis.src
             }
         }
 
-        public long RPush(string key, params string[] values)
+        public int RPush(string key, params string[] values)
         {
             if (values.Length == 0)
             {
@@ -107,7 +122,7 @@ namespace codecrafters_redis.src
             }
         }
 
-        public long LPush(string key, params string[] values)
+        public int LPush(string key, params string[] values)
         {
             if (values.Length == 0)
             {

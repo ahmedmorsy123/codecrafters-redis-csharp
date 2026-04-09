@@ -15,8 +15,8 @@ namespace codecrafters_redis.src.Commands
             }
             string key = args[0];
             string[] values = args.Skip(1).ToArray();
-            long newLength = StoreProvider.Instance.LPush(key, values);
-            return Task.FromResult(RespEncoder.EncodeInteger((int)newLength));
+            int newLength = StoreProvider.Instance.LPush(key, values);
+            return Task.FromResult(RespEncoder.EncodeInteger(newLength));
         }
     }
 }

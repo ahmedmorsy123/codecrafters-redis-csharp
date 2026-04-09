@@ -18,8 +18,8 @@ namespace codecrafters_redis.src.Commands
                 string key = args[0];
                 string[] values = args.Skip(1).ToArray();
     
-                long newLength = StoreProvider.Instance.RPush(key, values);
-                return Task.FromResult(RespEncoder.EncodeInteger((int)newLength));
+                int newLength = StoreProvider.Instance.RPush(key, values);
+                return Task.FromResult(RespEncoder.EncodeInteger(newLength));
         }
     }
 }
