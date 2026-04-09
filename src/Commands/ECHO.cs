@@ -16,7 +16,7 @@ namespace codecrafters_redis.src.Commands
             }
             else
             {
-                return "+" + args[0] + "\r\n";
+                return "$" + args[0].Length + "\r\n" + args[0] + "\r\n";
             }
         }
     }

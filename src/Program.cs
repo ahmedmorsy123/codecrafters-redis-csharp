@@ -50,7 +50,7 @@ static async Task HandleClientAsync(Socket client, Dictionary<string, ICommand> 
         if (bytesRead == 0)
         {
             // If 0 bytes are read, it means the client disconnected
-            Console.WriteLine("Client disconnected.");
+            Console.Error.WriteLine("Client disconnected.");
             break;
         }
 
