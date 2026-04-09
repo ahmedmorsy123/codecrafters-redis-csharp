@@ -23,7 +23,7 @@ namespace codecrafters_redis.src
             return "$" + data.Length + "\r\n" + data + "\r\n";
         }
 
-        public static string EncodeNullBulkString()
+        public static string EncodeNull()
         {
             return "$-1\r\n";
         }

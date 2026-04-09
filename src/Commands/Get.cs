@@ -16,7 +16,7 @@
 
             if (value is null)
             {
-                return Task.FromResult(RespEncoder.EncodeNullBulkString());
+                return Task.FromResult(RespEncoder.EncodeNull());
             }
 
             return Task.FromResult(RespEncoder.EncodeBulkString(value));

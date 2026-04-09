@@ -40,6 +40,31 @@ namespace codecrafters_redis.src
             }
         }
 
+        public string? LPop(string key)
+        {
+            lock (_syncRoot)
+            {
+                StoreEntry? entry = GetActiveEntry(key);
+                if (entry is null)
+                {
+                    return null;
+                }
+                if (entry.Value.Type != RedisValueType.List)
+                {
+                    throw new InvalidOperationException(WrongTypeMessage);
+                }
+                List<string> list = entry.Value.ListValue!;
+                if (list.Count == 0)
+                {
+                    return null;
+                }
+                string value = list[0];
+                list.RemoveAt(0);
+                _entries[key] = new StoreEntry(RedisValue.FromList(list), entry.ExpiresAtUtc);
+                return value;
+            }
+        }
+
         public int GetListLength(string key)
         {
             lock (_syncRoot)
