@@ -40,6 +40,42 @@ namespace codecrafters_redis.src
             }
         }
 
+        // LRANGE 
+        public IReadOnlyList<string> GetListRange(string key, int start, int stop)
+        {
+            lock (_syncRoot)
+            {
+                StoreEntry? entry = GetActiveEntry(key);
+                if (entry is null)
+                {
+                    return new List<string>();
+                }
+                if (entry.Value.Type != RedisValueType.List)
+                {
+                    throw new InvalidOperationException(WrongTypeMessage);
+                }
+                List<string> list = entry.Value.ListValue!;
+                int count = list.Count;
+                // Handle negative indices
+                if (start < 0)
+                {
+                    start = count + start;
+                }
+                if (stop < 0)
+                {
+                    stop = count + stop;
+                }
+                // Adjust indices to be within bounds
+                start = Math.Max(0, start);
+                stop = Math.Min(count - 1, stop);
+                if (start > stop || start >= count)
+                {
+                    return new List<string>();
+                }
+                return list.GetRange(start, stop - start + 1);
+            }
+        }
+
         public long RPush(string key, params string[] values)
         {
             if (values.Length == 0)

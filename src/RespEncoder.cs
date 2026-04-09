@@ -38,7 +38,7 @@ namespace codecrafters_redis.src
             return ":" + number + "\r\n";
         }
 
-        public static string EncodeArray(List<string> elements)
+        public static string EncodeArray(IReadOnlyList<string> elements)
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("*" + elements.Count + "\r\n");
