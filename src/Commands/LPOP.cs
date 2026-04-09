@@ -40,6 +40,11 @@ namespace codecrafters_redis.src.Commands
                 return Task.FromResult(RespEncoder.EncodeNull());
             }
 
+            if (args.Length == 1)
+            {
+                return Task.FromResult(RespEncoder.EncodeBulkString(poppedValues[0]));
+            }
+
             return Task.FromResult(RespEncoder.EncodeArray(poppedValues));
         }
     }
