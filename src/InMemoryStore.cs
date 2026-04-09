@@ -40,28 +40,36 @@ namespace codecrafters_redis.src
             }
         }
 
-        public string? LPop(string key)
+        
+        public List<string> LPop(string key, int count = 1)
         {
+            if (count <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), "Count must be a positive integer.");
+            }
             lock (_syncRoot)
             {
                 StoreEntry? entry = GetActiveEntry(key);
                 if (entry is null)
                 {
-                    return null;
+                    return new List<string>();
                 }
                 if (entry.Value.Type != RedisValueType.List)
                 {
                     throw new InvalidOperationException(WrongTypeMessage);
                 }
                 List<string> list = entry.Value.ListValue!;
+                List<string> poppedValues = list.Take(count).ToList();
+                list.RemoveRange(0, poppedValues.Count);
                 if (list.Count == 0)
                 {
-                    return null;
+                    _entries.TryRemove(key, out _);
                 }
-                string value = list[0];
-                list.RemoveAt(0);
-                _entries[key] = new StoreEntry(RedisValue.FromList(list), entry.ExpiresAtUtc);
-                return value;
+                else
+                {
+                    _entries[key] = new StoreEntry(RedisValue.FromList(list), entry.ExpiresAtUtc);
+                }
+                return poppedValues;
             }
         }
 

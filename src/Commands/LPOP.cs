@@ -9,25 +9,38 @@ namespace codecrafters_redis.src.Commands
         public string Name => "LPOP";
         public Task<string> ExecuteAsync(string[] args)
         {
-            if (args.Length != 1)
+            // first argument is the key, second optional argument is the count
+            if (args.Length < 1 || args.Length > 2)
             {
                 return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'LPOP' command"));
             }
+
             string key = args[0];
-            string? poppedValue;
+            int count = 1;
+            if (args.Length == 2)
+            {
+                if (!int.TryParse(args[1], out count) || count <= 0)
+                {
+                    return Task.FromResult(RespEncoder.EncodeError("count must be a positive integer"));
+                }
+            }
+
+            List<string> poppedValues;
             try
             {
-                poppedValue = StoreProvider.Instance.LPop(key);
+                poppedValues = StoreProvider.Instance.LPop(key, count);
             }
             catch (InvalidOperationException ex)
             {
                 return Task.FromResult(RespEncoder.EncodeError(ex.Message));
             }
-            if (poppedValue == null)
+
+            if (poppedValues.Count == 0)
             {
                 return Task.FromResult(RespEncoder.EncodeNull());
             }
-            return Task.FromResult(RespEncoder.EncodeBulkString(poppedValue));
+
+            return Task.FromResult(RespEncoder.EncodeArray(poppedValues));
         }
     }
 }
