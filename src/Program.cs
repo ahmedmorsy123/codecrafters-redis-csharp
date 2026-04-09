@@ -64,13 +64,13 @@ static async Task HandleClientAsync(Socket client, Dictionary<string, ICommand> 
 
 static async Task<string> ProcessRequestAsync(string message, Dictionary<string, ICommand> commandHandlers)
 {
-    List<string> commands = await DecodeRESP.DecodeAsync(message);
+    List<string> commands = await RespDecoder.DecodeAsync(message);
 
     Console.Error.WriteLine($"Received: {string.Join(", ", commands)}");
 
     if (commands.Count == 0)
     {
-        return "-ERR empty command\r\n";
+        return RespEncoder.EncodeError("empty command");
     }
 
     string commandName = commands[0];
@@ -78,7 +78,7 @@ static async Task<string> ProcessRequestAsync(string message, Dictionary<string,
 
     if (!commandHandlers.TryGetValue(commandName, out var handler))
     {
-        return $"-ERR unknown command '{commandName}'\r\n";
+        return RespEncoder.EncodeError($"unknown command '{commandName}'");
     }
 
     return await handler.ExecuteAsync(args);

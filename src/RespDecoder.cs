@@ -7,7 +7,7 @@ namespace codecrafters_redis.src
 
     // This class is responsible for decoding RESP (Redis Serialization Protocol) messages.
     // It Should read the string (the string converted using Encoding.UTF8.GetString) received from the client and convert it into a string that can be processed by the server.
-    public static class DecodeRESP
+    public static class RespDecoder
     {
         public static async Task<List<string>> DecodeAsync(string data)
         {

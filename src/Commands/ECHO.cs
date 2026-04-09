@@ -12,11 +12,11 @@ namespace codecrafters_redis.src.Commands
         {
             if (args.Length != 1)
             {
-                return "-ERR wrong number of arguments for 'ECHO' command\r\n";
+                return RespEncoder.EncodeError("wrong number of arguments for 'ECHO' command");
             }
             else
             {
-                return "$" + args[0].Length + "\r\n" + args[0] + "\r\n";
+                return RespEncoder.EncodeBulkString(args[0]);
             }
         }
     }
