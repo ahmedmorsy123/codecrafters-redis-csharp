@@ -24,6 +24,7 @@ namespace codecrafters_redis.src
         public static async Task<string> ExecuteAllAsync()
         {
             StringBuilder result = new();
+            result.Append("*").Append(Commands.Count).Append("\r\n");
             foreach (var entry in Commands)
             {
                 string commandResult = await entry.Key.ExecuteAsync(entry.Value);
