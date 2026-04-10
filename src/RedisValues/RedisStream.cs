@@ -20,7 +20,7 @@
             StreamId id = requestedId switch
             {
                 "*" => StreamId.Generate(_lastId), // auto-generate
-                _ when requestedId.EndsWith("-*") => new StreamId(StreamId.Parse(requestedId[..^2]).Timestamp, _lastId.Sequence + 1), // auto-generate sequence
+                _ when requestedId.EndsWith("-*") => CreateAutoSequenceId(requestedId), // auto-generate sequence
                 _ => StreamId.Parse(requestedId) // explicit
             };
 
@@ -30,6 +30,16 @@
             _lastId = id;
             _entries.Add(new StreamEntry(id, fields));
             return id;
+        }
+
+        private StreamId CreateAutoSequenceId(string requestedId)
+        {
+            long timestamp = long.Parse(requestedId[..^2]);
+            long sequence = timestamp == _lastId.Timestamp
+                ? _lastId.Sequence + 1
+                : 0;
+
+            return new StreamId(timestamp, sequence);
         }
 
         public IReadOnlyList<StreamEntry> Range(StreamId start, StreamId end)
@@ -73,8 +83,14 @@
             // "1526919030474-55"  →  (1526919030474, 55)
             // "1526919030474-*"     →  (1526919030474, 0)   partial ID
             string[] parts = id.Split('-');
+            if (parts.Length is < 1 or > 2)
+                throw new FormatException("Invalid stream ID format.");
+
             long ts = long.Parse(parts[0]);
-            long seq = parts[1] == "*" ? 0 : long.Parse(parts[1]);
+            long seq = parts.Length == 1
+                ? 0
+                : (parts[1] == "*" ? 0 : long.Parse(parts[1]));
+
             return new StreamId(ts, seq);
         }
 

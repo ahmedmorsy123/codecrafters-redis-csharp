@@ -25,7 +25,20 @@ namespace codecrafters_redis.src.Commands
 
             RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(streamKey, () => new RedisStream());
             StreamId previousLastId = stream.LastId;
-            StreamId id = stream.Add(requestedId, fields);
+            StreamId id;
+
+            try
+            {
+                id = stream.Add(requestedId, fields);
+            }
+            catch (FormatException)
+            {
+                return Task.FromResult(RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument"));
+            }
+            catch (OverflowException)
+            {
+                return Task.FromResult(RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument"));
+            }
 
             if (id == StreamId.Zero)
                 return Task.FromResult(RespEncoder.EncodeError("ERR The ID specified in XADD must be greater than 0-0"));
