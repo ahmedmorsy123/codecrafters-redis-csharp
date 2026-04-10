@@ -26,36 +26,23 @@ namespace codecrafters_redis.src.Commands
             RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(streamKey, () => new RedisStream());
             IReadOnlyList<StreamEntry> entries = stream.Range(startId, endId);
 
-            List<string> encodedEntries = new();
+            StringBuilder response = new();
+            response.Append('*').Append(entries.Count).Append("\r\n");
 
             foreach (StreamEntry entry in entries)
             {
-                string id = entry.Id.ToString();
-                List<string> fieldValues = new List<string>();
+                response.Append("*2\r\n");
+                response.Append(RespEncoder.EncodeBulkString(entry.Id.ToString()));
+
+                response.Append('*').Append(entry.Fields.Count * 2).Append("\r\n");
                 foreach (var field in entry.Fields)
                 {
-                    fieldValues.Add(field.Key);
-                    fieldValues.Add(field.Value);
+                    response.Append(RespEncoder.EncodeBulkString(field.Key));
+                    response.Append(RespEncoder.EncodeBulkString(field.Value));
                 }
-
-                // Encode the entry as a RESP array
-                encodedEntries.Add(RespEncoder.EncodeArray(new[] { id, RespEncoder.EncodeArray(fieldValues.ToArray()) }));
             }
 
-            return Task.FromResult(RespEncoder.EncodeArray(encodedEntries.ToArray()));
+            return Task.FromResult(response.ToString());
         }
-
-
-        //[
-        //[
-        //  id,
-        //  [
-        //    k1,
-        //    v1,
-        //    k2,
-        //    v2
-        //  ]
-        //]
-        //]
     }
 }
