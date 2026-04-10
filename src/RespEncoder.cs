@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using codecrafters_redis.src.RedisValues;
 
 namespace codecrafters_redis.src
 {
@@ -53,6 +54,42 @@ namespace codecrafters_redis.src
                 sb.Append(EncodeBulkString(element));
             }
             return sb.ToString();
+        }
+
+        public static string EncodeStreamEntries(IReadOnlyList<StreamEntry> entries)
+        {
+            StringBuilder response = new();
+            response.Append('*').Append(entries.Count).Append("\r\n");
+
+            foreach (StreamEntry entry in entries)
+            {
+                response.Append("*2\r\n");
+                response.Append(EncodeBulkString(entry.Id.ToString()));
+
+                response.Append('*').Append(entry.Fields.Count * 2).Append("\r\n");
+                foreach (var field in entry.Fields)
+                {
+                    response.Append(EncodeBulkString(field.Key));
+                    response.Append(EncodeBulkString(field.Value));
+                }
+            }
+
+            return response.ToString();
+        }
+
+        public static string EncodeXReadSingleStream(string key, IReadOnlyList<StreamEntry> entries)
+        {
+            if (entries.Count == 0)
+            {
+                return EncodeNullArray();
+            }
+
+            StringBuilder response = new();
+            response.Append("*1\r\n");
+            response.Append("*2\r\n");
+            response.Append(EncodeBulkString(key));
+            response.Append(EncodeStreamEntries(entries));
+            return response.ToString();
         }
     }
 }

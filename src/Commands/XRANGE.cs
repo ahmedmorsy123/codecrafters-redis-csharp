@@ -1,7 +1,6 @@
 ﻿using codecrafters_redis.src.RedisValues;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace codecrafters_redis.src.Commands
 {
@@ -25,24 +24,7 @@ namespace codecrafters_redis.src.Commands
 
             RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(streamKey, () => new RedisStream());
             IReadOnlyList<StreamEntry> entries = stream.Range(startId, endId);
-
-            StringBuilder response = new();
-            response.Append('*').Append(entries.Count).Append("\r\n");
-
-            foreach (StreamEntry entry in entries)
-            {
-                response.Append("*2\r\n");
-                response.Append(RespEncoder.EncodeBulkString(entry.Id.ToString()));
-
-                response.Append('*').Append(entry.Fields.Count * 2).Append("\r\n");
-                foreach (var field in entry.Fields)
-                {
-                    response.Append(RespEncoder.EncodeBulkString(field.Key));
-                    response.Append(RespEncoder.EncodeBulkString(field.Value));
-                }
-            }
-
-            return Task.FromResult(response.ToString());
+            return Task.FromResult(RespEncoder.EncodeStreamEntries(entries));
         }
     }
 }
