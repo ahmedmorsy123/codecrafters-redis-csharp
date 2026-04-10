@@ -46,6 +46,8 @@ namespace codecrafters_redis.src.Commands
             if(id <= previousLastId)
                 return Task.FromResult(RespEncoder.EncodeError("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
 
+            StoreProvider.Instance.NotifyKeyChanged(streamKey);
+
             return Task.FromResult(RespEncoder.EncodeBulkString(id.ToString()));
 
         }
