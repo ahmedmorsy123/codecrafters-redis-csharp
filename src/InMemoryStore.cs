@@ -11,7 +11,7 @@ using System.Collections.Concurrent;
             private readonly ConcurrentDictionary<string, StoreEntry> _entries =
                 new(StringComparer.Ordinal);
 
-            private readonly Dictionary<string, LinkedList<BlpopWaiter>> _blpopWaiters =
+            private readonly Dictionary<string, LinkedList<IKeyWaiter>> _keyWaiters =
                 new(StringComparer.Ordinal);
 
             private readonly object _syncRoot = new();
@@ -126,39 +126,67 @@ using System.Collections.Concurrent;
             public async Task<(string Key, string Value)?> BlockingLPopAsync(
                 string[] keys, TimeSpan timeout)
             {
+                (bool HasResult, (string Key, string Value) Result) waitResult =
+                    await BlockingWaitOnKeysAsync<(string Key, string Value)>(
+                        keys,
+                        timeout,
+                        TryPopLeftFromKeysLocked);
+
+                return waitResult.HasResult ? waitResult.Result : null;
+            }
+
+            public async Task<(bool HasResult, TResult Result)> BlockingWaitOnKeysAsync<TResult>(
+                string[] keys,
+                TimeSpan timeout,
+                Func<string[], (bool HasResult, TResult Result)> tryServeLocked)
+            {
                 if (keys.Length == 0)
                     throw new ArgumentException("At least one key is required.", nameof(keys));
 
                 string[] orderedKeys = keys.Distinct(StringComparer.Ordinal).ToArray();
-                BlpopWaiter waiter;
+                IKeyWaiter waiter;
 
                 lock (_syncRoot)
                 {
-                    foreach (string key in orderedKeys)
+                    (bool HasResult, TResult Result) immediate = tryServeLocked(orderedKeys);
+                    if (immediate.HasResult)
                     {
-                        if (TryPopLeftCore(key, out string? value))
-                            return (key, value!);
+                        return immediate;
                     }
 
-                    waiter = RegisterBlpopWaiterLocked(orderedKeys);
+                    waiter = RegisterKeyWaiterLocked(
+                        orderedKeys,
+                        () =>
+                        {
+                            (bool HasResult, TResult Result) attempt = tryServeLocked(orderedKeys);
+                            return (attempt.HasResult, (object?)attempt.Result);
+                        });
                 }
 
-                Task<(string Key, string Value)> waitTask = waiter.Completion.Task;
+                Task<object?> waitTask = waiter.Completion.Task;
 
                 if (timeout == TimeSpan.Zero)
-                    return await waitTask;
+                {
+                    object? result = await waitTask;
+                    return (true, (TResult)result!);
+                }
 
                 Task completedTask = await Task.WhenAny(waitTask, Task.Delay(timeout));
                 if (completedTask == waitTask)
-                    return await waitTask;
+                {
+                    object? result = await waitTask;
+                    return (true, (TResult)result!);
+                }
 
                 lock (_syncRoot)
                 {
                     if (!waiter.Completed)
-                        RemoveBlpopWaiterLocked(waiter);
+                    {
+                        RemoveKeyWaiterLocked(waiter);
+                    }
                 }
 
-                return null;
+                return (false, default!);
             }
 
             /// <summary>
@@ -167,16 +195,14 @@ using System.Collections.Concurrent;
             /// </summary>
             public void NotifyBlpopWaiters(string key)
             {
+                NotifyKeyChanged(key);
+            }
+
+            public void NotifyKeyChanged(string key)
+            {
                 lock (_syncRoot)
                 {
-                    StoreEntry? entry = GetActiveEntry(key);
-                    if (entry?.Value is not RedisList list) return;
-
-                    FulfillBlpopWaitersLocked(key, list);
-
-                    // Clean up empty list after fulfillment
-                    if (list.Count == 0)
-                        _entries.TryRemove(key, out _);
+                    FulfillKeyWaitersLocked(key);
                 }
             }
 
@@ -217,36 +243,51 @@ using System.Collections.Concurrent;
                 return true;
             }
 
-            private BlpopWaiter RegisterBlpopWaiterLocked(string[] keys)
+            private (bool HasResult, (string Key, string Value) Result) TryPopLeftFromKeysLocked(string[] orderedKeys)
             {
-                var waiter = new BlpopWaiter(++_waiterSequence);
+                foreach (string key in orderedKeys)
+                {
+                    if (TryPopLeftCore(key, out string? value))
+                    {
+                        return (true, (key, value!));
+                    }
+                }
+
+                return (false, default);
+            }
+
+            private IKeyWaiter RegisterKeyWaiterLocked(
+                string[] keys,
+                Func<(bool HasResult, object? Result)> tryServeLocked)
+            {
+                IKeyWaiter waiter = new KeyWaiter(++_waiterSequence, tryServeLocked);
 
                 foreach (string key in keys)
                 {
-                    if (!_blpopWaiters.TryGetValue(key,
-                        out LinkedList<BlpopWaiter>? queue))
+                    if (!_keyWaiters.TryGetValue(key,
+                        out LinkedList<IKeyWaiter>? queue))
                     {
-                        queue = new LinkedList<BlpopWaiter>();
-                        _blpopWaiters[key] = queue;
+                        queue = new LinkedList<IKeyWaiter>();
+                        _keyWaiters[key] = queue;
                     }
 
-                    LinkedListNode<BlpopWaiter> node = queue.AddLast(waiter);
+                    LinkedListNode<IKeyWaiter> node = queue.AddLast(waiter);
                     waiter.NodesByKey[key] = node;
                 }
 
                 return waiter;
             }
 
-            private void RemoveBlpopWaiterLocked(BlpopWaiter waiter)
+            private void RemoveKeyWaiterLocked(IKeyWaiter waiter)
             {
                 foreach (var item in waiter.NodesByKey)
                 {
-                    if (_blpopWaiters.TryGetValue(item.Key,
-                        out LinkedList<BlpopWaiter>? queue))
+                    if (_keyWaiters.TryGetValue(item.Key,
+                        out LinkedList<IKeyWaiter>? queue))
                     {
                         queue.Remove(item.Value);
                         if (queue.Count == 0)
-                            _blpopWaiters.Remove(item.Key);
+                            _keyWaiters.Remove(item.Key);
                     }
                 }
 
@@ -254,60 +295,84 @@ using System.Collections.Concurrent;
                 waiter.Completed = true;
             }
 
-            private void FulfillBlpopWaitersLocked(string key, RedisList list)
+            private void FulfillKeyWaitersLocked(string key)
             {
-                if (!_blpopWaiters.TryGetValue(key,
-                    out LinkedList<BlpopWaiter>? queue)) return;
+                if (!_keyWaiters.TryGetValue(key,
+                    out LinkedList<IKeyWaiter>? queue)) return;
 
-                while (list.Count > 0 && queue.Count > 0)
+                int initialCount = queue.Count;
+                for (int i = 0; i < initialCount && queue.Count > 0; i++)
                 {
-                    BlpopWaiter waiter = queue.First!.Value;
+                    IKeyWaiter waiter = queue.First!.Value;
                     queue.RemoveFirst();
                     waiter.NodesByKey.Remove(key);
 
-                    if (waiter.Completed) continue;
+                    if (waiter.Completed)
+                    {
+                        continue;
+                    }
+
+                    (bool HasResult, object? Result) attempt = waiter.TryServeLocked();
+                    if (!attempt.HasResult)
+                    {
+                        LinkedListNode<IKeyWaiter> requeueNode = queue.AddLast(waiter);
+                        waiter.NodesByKey[key] = requeueNode;
+                        continue;
+                    }
 
                     waiter.Completed = true;
 
                     foreach (var item in waiter.NodesByKey)
                     {
-                        if (_blpopWaiters.TryGetValue(item.Key,
-                            out LinkedList<BlpopWaiter>? otherQueue))
+                        if (_keyWaiters.TryGetValue(item.Key,
+                            out LinkedList<IKeyWaiter>? otherQueue))
                         {
                             otherQueue.Remove(item.Value);
                             if (otherQueue.Count == 0)
-                                _blpopWaiters.Remove(item.Key);
+                                _keyWaiters.Remove(item.Key);
                         }
                     }
 
                     waiter.NodesByKey.Clear();
-                    string? value = list.LPop().FirstOrDefault();
-                    if (value is not null)
-                        waiter.Completion.TrySetResult((key, value));
+                    waiter.Completion.TrySetResult(attempt.Result);
                 }
 
                 if (queue.Count == 0)
-                    _blpopWaiters.Remove(key);
+                    _keyWaiters.Remove(key);
             }
 
             // ----------------------------------------------------------------
             // Inner types
             // ----------------------------------------------------------------
 
-            private sealed class BlpopWaiter
+            private interface IKeyWaiter
             {
-                public BlpopWaiter(long sequence)
+                long Sequence { get; }
+                bool Completed { get; set; }
+                TaskCompletionSource<object?> Completion { get; }
+                Dictionary<string, LinkedListNode<IKeyWaiter>> NodesByKey { get; }
+                (bool HasResult, object? Result) TryServeLocked();
+            }
+
+            private sealed class KeyWaiter : IKeyWaiter
+            {
+                private readonly Func<(bool HasResult, object? Result)> _tryServeLocked;
+
+                public KeyWaiter(long sequence, Func<(bool HasResult, object? Result)> tryServeLocked)
                 {
                     Sequence = sequence;
-                    Completion = new TaskCompletionSource<(string Key, string Value)>(
+                    _tryServeLocked = tryServeLocked;
+                    Completion = new TaskCompletionSource<object?>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
                 }
 
                 public long Sequence { get; }
                 public bool Completed { get; set; }
-                public TaskCompletionSource<(string Key, string Value)> Completion { get; }
-                public Dictionary<string, LinkedListNode<BlpopWaiter>> NodesByKey { get; }
+                public TaskCompletionSource<object?> Completion { get; }
+                public Dictionary<string, LinkedListNode<IKeyWaiter>> NodesByKey { get; }
                     = new(StringComparer.Ordinal);
+
+                public (bool HasResult, object? Result) TryServeLocked() => _tryServeLocked();
             }
 
             public sealed record StoreEntry(IRedisValue Value, DateTimeOffset? ExpiresAtUtc)

@@ -5,26 +5,146 @@ namespace codecrafters_redis.src.Commands
     public class XREAD : ICommand
     {
         public string Name => "XREAD";
+
         public Task<string> ExecuteAsync(string[] args)
         {
-            if (!args[0].Equals("streams", StringComparison.OrdinalIgnoreCase))
-            {
+            if (args.Length == 0)
                 return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
+
+            if (args[0].Equals("streams", StringComparison.OrdinalIgnoreCase))
+                return ExecuteNonBlockingAsync(args);
+
+            if (args.Length < 4 || !args[0].Equals("block", StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
+
+            if (!long.TryParse(args[1], out long timeout) || timeout < 0)
+                return Task.FromResult(RespEncoder.EncodeError("timeout is not an integer or out of range"));
+
+            return ExecuteBlockingAsync(args.Skip(2).ToArray(), timeout);
+        }
+
+        private async Task<string> ExecuteBlockingAsync(string[] args, long timeout)
+        {
+            if (args.Length < 3 || !args[0].Equals("streams", StringComparison.OrdinalIgnoreCase) || ((args.Length - 1) % 2 != 0))
+                return RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command");
+
+            int streamsCount = (args.Length - 1) / 2;
+            string[] keys = new string[streamsCount];
+            StreamId[] afterIds = new StreamId[streamsCount];
+
+            try
+            {
+                for (int i = 0; i < streamsCount; i++)
+                {
+                    keys[i] = args[1 + i];
+                    string idText = args[1 + streamsCount + i];
+                    afterIds[i] = ResolveReadId(keys[i], idText);
+                }
             }
+            catch (FormatException)
+            {
+                return RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument");
+            }
+            catch (OverflowException)
+            {
+                return RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument");
+            }
+
+            TimeSpan waitTimeout = timeout == 0
+                ? TimeSpan.Zero
+                : TimeSpan.FromMilliseconds(timeout);
+
+            (bool HasResult, Dictionary<string, IReadOnlyList<StreamEntry>> Result) waitResult =
+                await StoreProvider.Instance.BlockingWaitOnKeysAsync(
+                    keys,
+                    waitTimeout,
+                    _ => ReadStreamsSince(keys, afterIds));
+
+            if (!waitResult.HasResult)
+                return RespEncoder.EncodeNullArray();
+
+            return RespEncoder.EncodeXReadMultipleStreams(waitResult.Result);
+        }
+
+        private Task<string> ExecuteNonBlockingAsync(string[] args)
+        {
+            if (args.Length < 3 || ((args.Length - 1) % 2 != 0))
+                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
 
             Dictionary<string, IReadOnlyList<StreamEntry>> streamEntries = new();
 
-            int streamsCount = (args.Length - 1) / 2;
-            for (int i = 1; i <= streamsCount; i++)
+            try
             {
-                string key = args[i];
-                StreamId after = StreamId.Parse(args[i + streamsCount]);
-                RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(key, () => new RedisStream());
-                IReadOnlyList<StreamEntry> entries = stream.Read(after);
-                streamEntries[key] = entries;
+                int streamsCount = (args.Length - 1) / 2;
+                for (int i = 1; i <= streamsCount; i++)
+                {
+                    string key = args[i];
+                    StreamId after = ResolveReadId(key, args[i + streamsCount]);
+                    RedisStream? stream = StoreProvider.Instance.Get<RedisStream>(key);
+                    if (stream is null)
+                    {
+                        continue;
+                    }
+
+                    IReadOnlyList<StreamEntry> entries = stream.Read(after);
+                    if (entries.Count > 0)
+                    {
+                        streamEntries[key] = entries;
+                    }
+                }
+            }
+            catch (FormatException)
+            {
+                return Task.FromResult(RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument"));
+            }
+            catch (OverflowException)
+            {
+                return Task.FromResult(RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument"));
+            }
+
+            if (streamEntries.Count == 0)
+            {
+                return Task.FromResult(RespEncoder.EncodeNullArray());
             }
 
             return Task.FromResult(RespEncoder.EncodeXReadMultipleStreams(streamEntries));
+        }
+
+        private (bool HasResult, Dictionary<string, IReadOnlyList<StreamEntry>> Result) ReadStreamsSince(string[] keys, StreamId[] afterIds)
+        {
+            Dictionary<string, IReadOnlyList<StreamEntry>> streamEntries = new();
+            bool any = false;
+
+            for (int i = 0; i < keys.Length; i++)
+            {
+                RedisStream? stream = StoreProvider.Instance.Get<RedisStream>(keys[i]);
+                if (stream is null)
+                {
+                    continue;
+                }
+
+                IReadOnlyList<StreamEntry> entries = stream.Read(afterIds[i]);
+                if (entries.Count == 0)
+                {
+                    continue;
+                }
+
+                any = true;
+                streamEntries[keys[i]] = entries;
+            }
+
+            return (any, streamEntries);
+        }
+
+        private StreamId ResolveReadId(string key, string idText)
+        {
+            if (idText == "$")
+            {
+                RedisStream? stream = StoreProvider.Instance.Get<RedisStream>(key);
+                return stream?.LastId ?? StreamId.Zero;
+            }
+
+            return StreamId.Parse(idText);
         }
     }
 }
