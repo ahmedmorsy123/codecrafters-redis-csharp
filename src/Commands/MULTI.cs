@@ -8,9 +8,9 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "MULTI";
 
-        public Task<string> ExecuteAsync(string[] args)
+        public Task<string> ExecuteAsync(string[] args, ClientSession session)
         {
-            CommandStore.isMULTI = true;
+            session.InTransaction = true;
             return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
         }
     }

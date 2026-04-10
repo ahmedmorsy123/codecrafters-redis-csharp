@@ -8,7 +8,7 @@ namespace codecrafters_redis.src.Commands
     public class Type : ICommand
     {
         public string Name => "TYPE";
-        public Task<string> ExecuteAsync(string[] args)
+        public Task<string> ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 1)
                 return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'TYPE' command"));

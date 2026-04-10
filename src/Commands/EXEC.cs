@@ -8,17 +8,25 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "EXEC";
 
-        public Task<string> ExecuteAsync(string[] args)
+        public async Task<string> ExecuteAsync(string[] args, ClientSession session)
         {
-            if (CommandStore.isMULTI)
+            if (!session.InTransaction)
             {
-                CommandStore.isMULTI = false;
-                return CommandStore.ExecuteAllAsync();
+                return RespEncoder.EncodeError("ERR EXEC without MULTI");
             }
-            else
+
+            var queued = session.QueuedCommands.ToArray();
+            session.ResetTransaction();
+
+            var result = new StringBuilder();
+            result.Append('*').Append(queued.Length).Append("\r\n");
+            foreach (var item in queued)
             {
-                return Task.FromResult(RespEncoder.EncodeError("ERR EXEC without MULTI"));
+                string commandResult = await item.Command.ExecuteAsync(item.Args, session);
+                result.Append(commandResult);
             }
+
+            return result.ToString();
         }
     }
 }

@@ -8,7 +8,7 @@ namespace codecrafters_redis.src.Commands
     public class LRANGE : ICommand
     {
         public string Name => "LRANGE";
-        public Task<string> ExecuteAsync(string[] args)
+        public Task<string> ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 3)
                 return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'LRANGE' command"));

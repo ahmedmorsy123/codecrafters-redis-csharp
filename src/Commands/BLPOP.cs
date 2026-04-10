@@ -6,7 +6,7 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "BLPOP";
 
-        public async Task<string> ExecuteAsync(string[] args)
+        public async Task<string> ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length < 2)
             {

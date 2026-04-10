@@ -6,7 +6,7 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "SET";
 
-        public Task<string> ExecuteAsync(string[] args)
+        public Task<string> ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 2 && args.Length != 4)
                 return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'SET' command"));

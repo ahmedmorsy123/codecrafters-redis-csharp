@@ -41,6 +41,7 @@ static async Task AcceptClientsAsync(TcpListener server, Dictionary<string, ICom
 static async Task HandleClientAsync(Socket client, Dictionary<string, ICommand> commandHandlers)
 {
     var buffer = new byte[1024]; // Larger buffer to fit full Redis commands
+    var session = new ClientSession();
 
     // Inner loop keeps reading messages from this specific client
     while (true)
@@ -55,14 +56,14 @@ static async Task HandleClientAsync(Socket client, Dictionary<string, ICommand> 
         }
 
         string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-        string responseText = await ProcessRequestAsync(message, commandHandlers);
+        string responseText = await ProcessRequestAsync(message, commandHandlers, session);
 
         byte[] response = Encoding.UTF8.GetBytes(responseText);
         await client.SendAsync(new ArraySegment<byte>(response), SocketFlags.None);
     }
 }
 
-static async Task<string> ProcessRequestAsync(string message, Dictionary<string, ICommand> commandHandlers)
+static async Task<string> ProcessRequestAsync(string message, Dictionary<string, ICommand> commandHandlers, ClientSession session)
 {
     List<string> commands = await RespDecoder.DecodeAsync(message);
 
@@ -81,12 +82,12 @@ static async Task<string> ProcessRequestAsync(string message, Dictionary<string,
         return RespEncoder.EncodeError($"unknown command '{commandName}'");
     }
 
-    if (CommandStore.isMULTI && commandName != "EXEC")
+    if (session.InTransaction && !commandName.Equals("EXEC", StringComparison.OrdinalIgnoreCase) && !commandName.Equals("DISCARD", StringComparison.OrdinalIgnoreCase))
     {
-        CommandStore.Store(handler, args);
+        session.QueuedCommands.Add((handler, args));
         return RespEncoder.EncodeSimpleString("QUEUED");
     }
 
-    return await handler.ExecuteAsync(args);
+    return await handler.ExecuteAsync(args, session);
 }
 
