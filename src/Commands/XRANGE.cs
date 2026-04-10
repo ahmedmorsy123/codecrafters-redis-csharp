@@ -18,10 +18,8 @@ namespace codecrafters_redis.src.Commands
 
             // if startid sequence is missing, it is considered as 0
             // if endid sequence is missing, it is considered as +inf
-            StreamId startId = StreamId.Parse(args[1]);
+            StreamId startId = args[1] == "-" ? StreamId.Zero : StreamId.Parse(args[1]);
             StreamId endId = StreamId.Parse(args[2]);
-
-
 
             RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(streamKey, () => new RedisStream());
             IReadOnlyList<StreamEntry> entries = stream.Range(startId, endId);
