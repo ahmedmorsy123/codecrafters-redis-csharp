@@ -11,16 +11,24 @@
 
         public StreamId Add(string requestedId, Dictionary<string, string> fields)
         {
-            StreamId id = requestedId == "*"
-                ? StreamId.Generate(_lastId)     // auto-generate
-                : StreamId.Parse(requestedId);   // validate > _lastId
 
-            if (id <= _lastId)
-                throw new InvalidOperationException(
-                    "The ID specified in XADD is equal or smaller than the target stream top item");
+            // id possible formates are: 
+            // 1. "*" (Auto-generate the time and sequence number)
+            // 2. "1526919030474-55" (explicit)
+            // 3. "1526919030474-*" (Auto-generate only sequence number)
 
-            _entries.Add(new StreamEntry(id, fields));
+            StreamId id = requestedId switch
+            {
+                "*" => StreamId.Generate(_lastId), // auto-generate
+                _ when requestedId.EndsWith("-*") => new StreamId(StreamId.Parse(requestedId[..^2]).Timestamp, _lastId.Sequence + 1), // auto-generate sequence
+                _ => StreamId.Parse(requestedId) // explicit
+            };
+
+            if (id <= _lastId || id == StreamId.Zero) return id; // invalid ID (must be > last ID and not zero)
+
+
             _lastId = id;
+            _entries.Add(new StreamEntry(id, fields));
             return id;
         }
 
@@ -63,10 +71,10 @@
         public static StreamId Parse(string id)
         {
             // "1526919030474-55"  →  (1526919030474, 55)
-            // "1526919030474"     →  (1526919030474, 0)   partial ID
+            // "1526919030474-*"     →  (1526919030474, 0)   partial ID
             string[] parts = id.Split('-');
             long ts = long.Parse(parts[0]);
-            long seq = parts.Length > 1 ? long.Parse(parts[1]) : 0;
+            long seq = parts[1] == "*" ? 0 : long.Parse(parts[1]);
             return new StreamId(ts, seq);
         }
 
@@ -80,6 +88,8 @@
         public static bool operator >=(StreamId a, StreamId b) => a.CompareTo(b) >= 0;
         public static bool operator >(StreamId a, StreamId b) => a.CompareTo(b) > 0;
         public static bool operator <(StreamId a, StreamId b) => a.CompareTo(b) < 0;
+        public static bool operator ==(StreamId a, StreamId b) => a.CompareTo(b) == 0;
+        public static bool operator !=(StreamId a, StreamId b) => a.CompareTo(b) != 0;
 
         public override string ToString() => $"{Timestamp}-{Sequence}";
     }

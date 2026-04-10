@@ -27,6 +27,12 @@ namespace codecrafters_redis.src.Commands
             RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(streamKey, () => new RedisStream());
             StreamId id = stream.Add(requestedId, fields);
 
+            if (id == StreamId.Zero)
+                return Task.FromResult(RespEncoder.EncodeError("ERR The ID specified in XADD must be greater than 0-0"));
+
+            if(id <= stream.LastId)
+                return Task.FromResult(RespEncoder.EncodeError("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
+
             return Task.FromResult(RespEncoder.EncodeBulkString(id.ToString()));
 
         }
