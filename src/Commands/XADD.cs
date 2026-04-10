@@ -12,7 +12,6 @@ namespace codecrafters_redis.src.Commands
         public Task<string> ExecuteAsync(string[] args)
         {
 
-            Console.WriteLine("Test" + string.Join("- ", args));
             if (args.Length < 3 || args.Length % 2 != 0)
                 return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XADD' command"));
 

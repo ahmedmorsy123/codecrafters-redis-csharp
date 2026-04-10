@@ -35,6 +35,7 @@ namespace codecrafters_redis.src
 
         public static string EncodeError(string errorMessage)
         {
+            Console.Error.WriteLine(errorMessage);
             return "-" + errorMessage + "\r\n";
         }   
 
