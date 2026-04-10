@@ -16,6 +16,7 @@ namespace codecrafters_redis.src.RedisValues
         Hash,
         Set,
         SortedSet,
+        Stream
     }
     
 }
