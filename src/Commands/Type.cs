@@ -22,6 +22,7 @@ namespace codecrafters_redis.src.Commands
             {
                 RedisValueType.String => "string",
                 RedisValueType.List => "list",
+                RedisValueType.Stream => "stream",
                 _ => "none"
             };
             return Task.FromResult(RespEncoder.EncodeSimpleString(typeName));
