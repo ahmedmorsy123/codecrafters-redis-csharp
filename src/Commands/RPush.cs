@@ -1,4 +1,5 @@
-﻿using System;
+﻿using codecrafters_redis.src.RedisValues;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,20 +7,26 @@ namespace codecrafters_redis.src.Commands
 {
     public class RPush : ICommand
     {
-            public string Name => "RPUSH";
-    
-            public Task<string> ExecuteAsync(string[] args)
+        public string Name => "RPUSH";
+        public Task<string> ExecuteAsync(string[] args)
+        {
+            if (args.Length < 2)
+                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'RPUSH' command"));
+
+            string key = args[0];
+            string[] values = args.Skip(1).ToArray();
+
+            try
             {
-                if (args.Length < 2)
-                {
-                    return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'RPUSH' command"));
-                }
-    
-                string key = args[0];
-                string[] values = args.Skip(1).ToArray();
-    
-                int newLength = StoreProvider.Instance.RPush(key, values);
-                return Task.FromResult(RespEncoder.EncodeInteger(newLength));
+                RedisList list = StoreProvider.Instance.GetOrCreate<RedisList>(key, () => new RedisList());
+                list.RPush(values);
+                StoreProvider.Instance.NotifyBlpopWaiters(key); // ← unblocks BLPOP clients
+                return Task.FromResult(RespEncoder.EncodeInteger(list.Count));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Task.FromResult(RespEncoder.EncodeError(ex.Message));
+            }
         }
     }
 }

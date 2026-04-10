@@ -22,32 +22,19 @@ namespace codecrafters_redis.src.Commands
             }
 
             TimeSpan timeout = TimeSpan.FromSeconds(timeoutSeconds);
-            DateTimeOffset start = DateTimeOffset.UtcNow;
-
-            while (true)
+            try
             {
-                foreach (string key in keys)
-                {
-                    try
-                    {
-                        List<string> popped = StoreProvider.Instance.LPop(key, 1);
-                        if (popped.Count > 0)
-                        {
-                            return RespEncoder.EncodeArray(new List<string> { key, popped[0] });
-                        }
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        return RespEncoder.EncodeError(ex.Message);
-                    }
-                }
-
-                if (timeout != TimeSpan.Zero && DateTimeOffset.UtcNow - start >= timeout)
+                (string Key, string Value)? result = await StoreProvider.Instance.BlockingLPopAsync(keys, timeout);
+                if (!result.HasValue)
                 {
                     return RespEncoder.EncodeNullArray();
                 }
 
-                await Task.Delay(25);
+                return RespEncoder.EncodeArray(new List<string> { result.Value.Key, result.Value.Value });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return RespEncoder.EncodeError(ex.Message);
             }
         }
     }

@@ -1,284 +1,325 @@
+using codecrafters_redis.src.RedisValues;
 using System.Collections.Concurrent;
 
-namespace codecrafters_redis.src
-{
-    public sealed class InMemoryStore
+    namespace codecrafters_redis.src
     {
-        private const string WrongTypeMessage = "WRONGTYPE Operation against a key holding the wrong kind of value";
-
-        private readonly ConcurrentDictionary<string, StoreEntry> _entries = new(StringComparer.Ordinal);
-        private readonly object _syncRoot = new();
-
-        public void Set(string key, string value, TimeSpan? ttl = null)
+        public sealed class InMemoryStore
         {
-            lock (_syncRoot)
-            {
-                DateTimeOffset? expiresAtUtc = ttl.HasValue
-                    ? DateTimeOffset.UtcNow.Add(ttl.Value)
-                    : null;
+            private const string WrongTypeMessage =
+                "WRONGTYPE Operation against a key holding the wrong kind of value";
 
-                _entries[key] = new StoreEntry(RedisValue.FromString(value), expiresAtUtc);
-            }
-        }
+            private readonly ConcurrentDictionary<string, StoreEntry> _entries =
+                new(StringComparer.Ordinal);
 
-        public string? Get(string key)
-        {
-            lock (_syncRoot)
+            private readonly Dictionary<string, LinkedList<BlpopWaiter>> _blpopWaiters =
+                new(StringComparer.Ordinal);
+
+            private readonly object _syncRoot = new();
+            private long _waiterSequence;
+
+            // ----------------------------------------------------------------
+            // Core generic API
+            // ----------------------------------------------------------------
+
+            /// <summary>
+            /// Gets the raw store entry for a key, or null if missing/expired.
+            /// </summary>
+            public StoreEntry? GetEntry(string key)
             {
-                StoreEntry? entry = GetActiveEntry(key);
-                if (entry is null)
+                lock (_syncRoot)
                 {
+                    return GetActiveEntry(key);
+                }
+            }
+
+            /// <summary>
+            /// Gets the typed value for a key, creating it if absent.
+            /// Throws WRONGTYPE if the key holds a different type.
+            /// </summary>
+            public T GetOrCreate<T>(string key, Func<T> factory) where T : IRedisValue
+        {
+                lock (_syncRoot)
+                {
+                    StoreEntry? entry = GetActiveEntry(key);
+
+                    if (entry is null)
+                    {
+                        T newValue = factory();
+                        _entries[key] = new StoreEntry(newValue, null);
+                        return newValue;
+                    }
+
+                    if (entry.Value is not T typed)
+                        throw new InvalidOperationException(WrongTypeMessage);
+
+                    return typed;
+                }
+            }
+
+            /// <summary>
+            /// Gets the typed value for a key — does NOT create if absent.
+            /// Returns null if missing. Throws WRONGTYPE if wrong type.
+            /// Used by read-only commands (GET, LRANGE, etc.)
+            /// </summary>
+            public T? Get<T>(string key) where T : class, IRedisValue
+            {
+                lock (_syncRoot)
+                {
+                    StoreEntry? entry = GetActiveEntry(key);
+                    if (entry is null) return null;
+
+                    if (entry.Value is not T typed)
+                        throw new InvalidOperationException(WrongTypeMessage);
+
+                    return typed;
+                }
+            }
+
+            /// <summary>
+            /// Persists the entry back to the store, preserving existing TTL.
+            /// Call this after mutating a value obtained via GetOrCreate.
+            /// </summary>
+            public void SetEntry(string key, IRedisValue value, TimeSpan? ttl = null)
+            {
+                lock (_syncRoot)
+                {
+                    DateTimeOffset? expiresAtUtc = ttl.HasValue
+                        ? DateTimeOffset.UtcNow.Add(ttl.Value)
+                        : GetActiveEntry(key)?.ExpiresAtUtc; // preserve existing TTL
+
+                    _entries[key] = new StoreEntry(value, expiresAtUtc);
+                }
+            }
+
+            /// <summary>
+            /// Removes a key from the store. Returns true if it existed.
+            /// </summary>
+            public bool Remove(string key)
+            {
+                lock (_syncRoot)
+                {
+                    return _entries.TryRemove(key, out _);
+                }
+            }
+
+            /// <summary>
+            /// Sets or updates the TTL on an existing key.
+            /// Returns false if the key does not exist.
+            /// </summary>
+            public bool Expire(string key, TimeSpan ttl)
+            {
+                lock (_syncRoot)
+                {
+                    StoreEntry? entry = GetActiveEntry(key);
+                    if (entry is null) return false;
+
+                    _entries[key] = new StoreEntry(entry.Value,
+                        DateTimeOffset.UtcNow.Add(ttl));
+                    return true;
+                }
+            }
+
+            // ----------------------------------------------------------------
+            // Blocking pop (stays here — needs store-level locking)
+            // ----------------------------------------------------------------
+
+            public async Task<(string Key, string Value)?> BlockingLPopAsync(
+                string[] keys, TimeSpan timeout)
+            {
+                if (keys.Length == 0)
+                    throw new ArgumentException("At least one key is required.", nameof(keys));
+
+                string[] orderedKeys = keys.Distinct(StringComparer.Ordinal).ToArray();
+                BlpopWaiter waiter;
+
+                lock (_syncRoot)
+                {
+                    foreach (string key in orderedKeys)
+                    {
+                        if (TryPopLeftCore(key, out string? value))
+                            return (key, value!);
+                    }
+
+                    waiter = RegisterBlpopWaiterLocked(orderedKeys);
+                }
+
+                Task<(string Key, string Value)> waitTask = waiter.Completion.Task;
+
+                if (timeout == TimeSpan.Zero)
+                    return await waitTask;
+
+                Task completedTask = await Task.WhenAny(waitTask, Task.Delay(timeout));
+                if (completedTask == waitTask)
+                    return await waitTask;
+
+                lock (_syncRoot)
+                {
+                    if (!waiter.Completed)
+                        RemoveBlpopWaiterLocked(waiter);
+                }
+
+                return null;
+            }
+
+            /// <summary>
+            /// Called by command handlers after an LPush/RPush so blocked
+            /// BLPOP clients get notified.
+            /// </summary>
+            public void NotifyBlpopWaiters(string key)
+            {
+                lock (_syncRoot)
+                {
+                    StoreEntry? entry = GetActiveEntry(key);
+                    if (entry?.Value is not RedisList list) return;
+
+                    FulfillBlpopWaitersLocked(key, list);
+
+                    // Clean up empty list after fulfillment
+                    if (list.Count == 0)
+                        _entries.TryRemove(key, out _);
+                }
+            }
+
+            // ----------------------------------------------------------------
+            // Private helpers
+            // ----------------------------------------------------------------
+
+            private StoreEntry? GetActiveEntry(string key)
+            {
+                if (!_entries.TryGetValue(key, out StoreEntry? entry))
                     return null;
-                }
 
-                if (entry.Value.Type != RedisValueType.String)
-                {
-                    throw new InvalidOperationException(WrongTypeMessage);
-                }
-
-                return entry.Value.StringValue;
-            }
-        }
-
-        
-        public List<string> LPop(string key, int count = 1)
-        {
-            if (count <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(count), "Count must be a positive integer.");
-            }
-            lock (_syncRoot)
-            {
-                StoreEntry? entry = GetActiveEntry(key);
-                if (entry is null)
-                {
-                    return new List<string>();
-                }
-                if (entry.Value.Type != RedisValueType.List)
-                {
-                    throw new InvalidOperationException(WrongTypeMessage);
-                }
-                List<string> list = entry.Value.ListValue!;
-                List<string> poppedValues = list.Take(count).ToList();
-                list.RemoveRange(0, poppedValues.Count);
-                if (list.Count == 0)
+                if (entry.IsExpired(DateTimeOffset.UtcNow))
                 {
                     _entries.TryRemove(key, out _);
-                }
-                else
-                {
-                    _entries[key] = new StoreEntry(RedisValue.FromList(list), entry.ExpiresAtUtc);
-                }
-                return poppedValues;
-            }
-        }
-
-        public int GetListLength(string key)
-        {
-            lock (_syncRoot)
-            {
-                StoreEntry? entry = GetActiveEntry(key);
-                if (entry is null)
-                {
-                    return 0;
-                }
-                if (entry.Value.Type != RedisValueType.List)
-                {
-                    throw new InvalidOperationException(WrongTypeMessage);
-                }
-                return entry.Value.ListValue!.Count;
-            }
-        }
-        public IReadOnlyList<string> GetListRange(string key, int start, int stop)
-        {
-            lock (_syncRoot)
-            {
-                StoreEntry? entry = GetActiveEntry(key);
-                if (entry is null)
-                {
-                    return new List<string>();
-                }
-                if (entry.Value.Type != RedisValueType.List)
-                {
-                    throw new InvalidOperationException(WrongTypeMessage);
-                }
-                List<string> list = entry.Value.ListValue!;
-                int count = list.Count;
-                // Handle negative indices
-                if (start < 0)
-                {
-                    start = count + start;
-                }
-                if (stop < 0)
-                {
-                    stop = count + stop;
-                }
-                // Adjust indices to be within bounds
-                start = Math.Max(0, start);
-                stop = Math.Min(count - 1, stop);
-                if (start > stop || start >= count)
-                {
-                    return new List<string>();
-                }
-                return list.GetRange(start, stop - start + 1);
-            }
-        }
-
-        public int RPush(string key, params string[] values)
-        {
-            if (values.Length == 0)
-            {
-                return 0;
-            }
-            lock (_syncRoot)
-            {
-                StoreEntry? entry = GetActiveEntry(key);
-                List<string> list;
-                DateTimeOffset? expiresAtUtc;
-                if (entry is null)
-                {
-                    list = new List<string>();
-                    expiresAtUtc = null;
-                }
-                else
-                {
-                    if (entry.Value.Type != RedisValueType.List)
-                    {
-                        throw new InvalidOperationException(WrongTypeMessage);
-                    }
-                    list = entry.Value.ListValue!;
-                    expiresAtUtc = entry.ExpiresAtUtc;
-                }
-                list.AddRange(values);
-                _entries[key] = new StoreEntry(RedisValue.FromList(list), expiresAtUtc);
-                return list.Count;
-            }
-        }
-
-        public int LPush(string key, params string[] values)
-        {
-            if (values.Length == 0)
-            {
-                return 0;
-            }
-
-            lock (_syncRoot)
-            {
-                StoreEntry? entry = GetActiveEntry(key);
-
-                List<string> list;
-                DateTimeOffset? expiresAtUtc;
-
-                if (entry is null)
-                {
-                    list = new List<string>();
-                    expiresAtUtc = null;
-                }
-                else
-                {
-                    if (entry.Value.Type != RedisValueType.List)
-                    {
-                        throw new InvalidOperationException(WrongTypeMessage);
-                    }
-
-                    list = entry.Value.ListValue!;
-                    expiresAtUtc = entry.ExpiresAtUtc;
-                }
-
-                foreach (string value in values)
-                {
-                    list.Insert(0, value);
-                }
-
-                _entries[key] = new StoreEntry(RedisValue.FromList(list), expiresAtUtc);
-                return list.Count;
-            }
-        }
-
-        public IReadOnlyList<string>? GetList(string key)
-        {
-            lock (_syncRoot)
-            {
-                StoreEntry? entry = GetActiveEntry(key);
-                if (entry is null)
-                {
                     return null;
                 }
 
-                if (entry.Value.Type != RedisValueType.List)
-                {
+                return entry;
+            }
+
+            private bool TryPopLeftCore(string key, out string? value)
+            {
+                value = null;
+
+                StoreEntry? entry = GetActiveEntry(key);
+                if (entry is null) return false;
+
+                if (entry.Value is not RedisList list)
                     throw new InvalidOperationException(WrongTypeMessage);
+
+                value = list.LPop().FirstOrDefault();
+                if (value is null) return false;
+
+                if (list.Count == 0)
+                    _entries.TryRemove(key, out _);
+
+                return true;
+            }
+
+            private BlpopWaiter RegisterBlpopWaiterLocked(string[] keys)
+            {
+                var waiter = new BlpopWaiter(++_waiterSequence);
+
+                foreach (string key in keys)
+                {
+                    if (!_blpopWaiters.TryGetValue(key,
+                        out LinkedList<BlpopWaiter>? queue))
+                    {
+                        queue = new LinkedList<BlpopWaiter>();
+                        _blpopWaiters[key] = queue;
+                    }
+
+                    LinkedListNode<BlpopWaiter> node = queue.AddLast(waiter);
+                    waiter.NodesByKey[key] = node;
                 }
 
-                return entry.Value.ListValue!.ToList();
+                return waiter;
+            }
+
+            private void RemoveBlpopWaiterLocked(BlpopWaiter waiter)
+            {
+                foreach (var item in waiter.NodesByKey)
+                {
+                    if (_blpopWaiters.TryGetValue(item.Key,
+                        out LinkedList<BlpopWaiter>? queue))
+                    {
+                        queue.Remove(item.Value);
+                        if (queue.Count == 0)
+                            _blpopWaiters.Remove(item.Key);
+                    }
+                }
+
+                waiter.NodesByKey.Clear();
+                waiter.Completed = true;
+            }
+
+            private void FulfillBlpopWaitersLocked(string key, RedisList list)
+            {
+                if (!_blpopWaiters.TryGetValue(key,
+                    out LinkedList<BlpopWaiter>? queue)) return;
+
+                while (list.Count > 0 && queue.Count > 0)
+                {
+                    BlpopWaiter waiter = queue.First!.Value;
+                    queue.RemoveFirst();
+                    waiter.NodesByKey.Remove(key);
+
+                    if (waiter.Completed) continue;
+
+                    waiter.Completed = true;
+
+                    foreach (var item in waiter.NodesByKey)
+                    {
+                        if (_blpopWaiters.TryGetValue(item.Key,
+                            out LinkedList<BlpopWaiter>? otherQueue))
+                        {
+                            otherQueue.Remove(item.Value);
+                            if (otherQueue.Count == 0)
+                                _blpopWaiters.Remove(item.Key);
+                        }
+                    }
+
+                    waiter.NodesByKey.Clear();
+                    string? value = list.LPop().FirstOrDefault();
+                    if (value is not null)
+                        waiter.Completion.TrySetResult((key, value));
+                }
+
+                if (queue.Count == 0)
+                    _blpopWaiters.Remove(key);
+            }
+
+            // ----------------------------------------------------------------
+            // Inner types
+            // ----------------------------------------------------------------
+
+            private sealed class BlpopWaiter
+            {
+                public BlpopWaiter(long sequence)
+                {
+                    Sequence = sequence;
+                    Completion = new TaskCompletionSource<(string Key, string Value)>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+
+                public long Sequence { get; }
+                public bool Completed { get; set; }
+                public TaskCompletionSource<(string Key, string Value)> Completion { get; }
+                public Dictionary<string, LinkedListNode<BlpopWaiter>> NodesByKey { get; }
+                    = new(StringComparer.Ordinal);
+            }
+
+            public sealed record StoreEntry(IRedisValue Value, DateTimeOffset? ExpiresAtUtc)
+            {
+                public bool IsExpired(DateTimeOffset nowUtc) =>
+                    ExpiresAtUtc.HasValue && nowUtc >= ExpiresAtUtc.Value;
             }
         }
 
-        public bool Remove(string key)
+        public static class StoreProvider
         {
-            lock (_syncRoot)
-            {
-                return _entries.TryRemove(key, out _);
-            }
-        }
-
-        private StoreEntry? GetActiveEntry(string key)
-        {
-            if (!_entries.TryGetValue(key, out StoreEntry? entry))
-            {
-                return null;
-            }
-
-            if (entry.IsExpired(DateTimeOffset.UtcNow))
-            {
-                _entries.TryRemove(key, out _);
-                return null;
-            }
-
-            return entry;
-        }
-
-        private sealed class RedisValue
-        {
-            private RedisValue(RedisValueType type, string? stringValue, List<string>? listValue)
-            {
-                Type = type;
-                StringValue = stringValue;
-                ListValue = listValue;
-            }
-
-            public RedisValueType Type { get; }
-            public string? StringValue { get; }
-            public List<string>? ListValue { get; }
-
-            public static RedisValue FromString(string value)
-            {
-                return new RedisValue(RedisValueType.String, value, null);
-            }
-
-            public static RedisValue FromList(List<string> value)
-            {
-                return new RedisValue(RedisValueType.List, null, value);
-            }
-        }
-
-        private enum RedisValueType
-        {
-            String,
-            List,
-        }
-
-        private sealed record StoreEntry(RedisValue Value, DateTimeOffset? ExpiresAtUtc)
-        {
-            public bool IsExpired(DateTimeOffset nowUtc)
-            {
-                return ExpiresAtUtc.HasValue && nowUtc >= ExpiresAtUtc.Value;
-            }
+            public static InMemoryStore Instance { get; } = new();
         }
     }
 
-    public static class StoreProvider
-    {
-        public static InMemoryStore Instance { get; } = new();
-    }
-}
