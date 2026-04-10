@@ -81,6 +81,12 @@ static async Task<string> ProcessRequestAsync(string message, Dictionary<string,
         return RespEncoder.EncodeError($"unknown command '{commandName}'");
     }
 
+    if (CommandStore.isMULTI)
+    {
+        CommandStore.Store(handler, args);
+        return RespEncoder.EncodeSimpleString("QUEUED");
+    }
+
     return await handler.ExecuteAsync(args);
 }
 
