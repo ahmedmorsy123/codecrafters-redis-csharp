@@ -45,6 +45,7 @@ using System.Collections.Concurrent;
                     {
                         T newValue = factory();
                         _entries[key] = new StoreEntry(newValue, null);
+                        _blockingCoordinator.NotifyKeyChanged(key);
                         return newValue;
                     }
 
@@ -88,6 +89,8 @@ using System.Collections.Concurrent;
 
                     _entries[key] = new StoreEntry(value, expiresAtUtc);
                 }
+
+                _blockingCoordinator.NotifyKeyChanged(key);
             }
 
             /// <summary>
@@ -97,7 +100,10 @@ using System.Collections.Concurrent;
             {
                 lock (_syncRoot)
                 {
-                    return _entries.TryRemove(key, out _);
+                    bool removed = _entries.TryRemove(key, out _);
+                    if (removed)
+                        _blockingCoordinator.NotifyKeyChanged(key);
+                    return removed;
                 }
             }
 
@@ -114,6 +120,7 @@ using System.Collections.Concurrent;
 
                     _entries[key] = new StoreEntry(entry.Value,
                         DateTimeOffset.UtcNow.Add(ttl));
+                    _blockingCoordinator.NotifyKeyChanged(key);
                     return true;
                 }
             }
