@@ -12,13 +12,19 @@ namespace codecrafters_redis.src.Commands
                 return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
             }
 
-            string key = args[1];
-            StreamId after = StreamId.Parse(args[2]);
+            Dictionary<string, IReadOnlyList<StreamEntry>> streamEntries = new();
 
-            RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(key, () => new RedisStream());
-            IReadOnlyList<StreamEntry> entries = stream.Read(after);
+            int streamsCount = (args.Length - 1) / 2;
+            for (int i = 1; i <= streamsCount; i++)
+            {
+                string key = args[i];
+                StreamId after = StreamId.Parse(args[i + streamsCount]);
+                RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(key, () => new RedisStream());
+                IReadOnlyList<StreamEntry> entries = stream.Read(after);
+                streamEntries[key] = entries;
+            }
 
-            return Task.FromResult(RespEncoder.EncodeXReadSingleStream(key, entries));
+            return Task.FromResult(RespEncoder.EncodeXReadMultipleStreams(streamEntries));
         }
     }
 }

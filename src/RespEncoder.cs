@@ -77,18 +77,18 @@ namespace codecrafters_redis.src
             return response.ToString();
         }
 
-        public static string EncodeXReadSingleStream(string key, IReadOnlyList<StreamEntry> entries)
+        public static string EncodeXReadMultipleStreams(IReadOnlyDictionary<string, IReadOnlyList<StreamEntry>> streamEntries)
         {
-            if (entries.Count == 0)
-            {
-                return EncodeNullArray();
-            }
-
             StringBuilder response = new();
-            response.Append("*1\r\n");
-            response.Append("*2\r\n");
-            response.Append(EncodeBulkString(key));
-            response.Append(EncodeStreamEntries(entries));
+            response.Append('*').Append(streamEntries.Count).Append("\r\n");
+            foreach (var kvp in streamEntries)
+            {
+                string key = kvp.Key;
+                IReadOnlyList<StreamEntry> entries = kvp.Value;
+                response.Append("*2\r\n");
+                response.Append(EncodeBulkString(key));
+                response.Append(EncodeStreamEntries(entries));
+            }
             return response.ToString();
         }
     }
