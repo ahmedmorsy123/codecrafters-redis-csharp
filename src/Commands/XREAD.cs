@@ -7,7 +7,7 @@ namespace codecrafters_redis.src.Commands
         public string Name => "XREAD";
         public Task<string> ExecuteAsync(string[] args)
         {
-            if (args.Length != 3 || !args[0].Equals("streams", StringComparison.OrdinalIgnoreCase))
+            if (!args[0].Equals("streams", StringComparison.OrdinalIgnoreCase))
             {
                 return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
             }
