@@ -16,6 +16,7 @@ namespace codecrafters_redis.src
 
         public static string EncodeSimpleString(string data)
         {
+            Console.Error.WriteLine($"for testing this is the simple string{data}");
              return "+" + data + "\r\n";
         }
 
