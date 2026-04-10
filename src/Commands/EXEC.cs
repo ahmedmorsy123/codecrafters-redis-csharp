@@ -12,6 +12,7 @@ namespace codecrafters_redis.src.Commands
         {
             if (CommandStore.isMULTI)
             {
+                CommandStore.isMULTI = false;
                 return CommandStore.ExecuteAllAsync();
             }
             else
