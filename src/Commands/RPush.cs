@@ -20,8 +20,9 @@ namespace codecrafters_redis.src.Commands
             {
                 RedisList list = StoreProvider.Instance.GetOrCreate<RedisList>(key, () => new RedisList());
                 list.RPush(values);
+                int lengthAfterPush = list.Count;
                 StoreProvider.Instance.NotifyBlpopWaiters(key); // ← unblocks BLPOP clients
-                return Task.FromResult(RespEncoder.EncodeInteger(list.Count));
+                return Task.FromResult(RespEncoder.EncodeInteger(lengthAfterPush));
             }
             catch (InvalidOperationException ex)
             {
