@@ -26,7 +26,7 @@ namespace codecrafters_redis.src.Commands
             }
             else
             {
-                // value is not an int
+                return Task.FromResult(RespEncoder.EncodeError("ERR value is not an integer or out of range"));
             }
 
 
