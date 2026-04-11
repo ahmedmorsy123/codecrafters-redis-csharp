@@ -13,6 +13,12 @@ namespace codecrafters_redis.src.Commands
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
+            if (args[0] == "GETACK")
+            {
+                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "REPLCONF", "ACK", "0" }));
+                return;
+            }
+
             await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }
