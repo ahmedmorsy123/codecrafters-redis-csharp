@@ -1,4 +1,6 @@
-namespace codecrafters_redis.src
+using codecrafters_redis.src.Storage;
+
+namespace codecrafters_redis.src.Client
 {
     public sealed class ClientWatcher
     {

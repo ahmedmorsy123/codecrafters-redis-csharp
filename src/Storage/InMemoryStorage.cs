@@ -2,9 +2,9 @@ using codecrafters_redis.src.RedisValues;
 using codecrafters_redis.src.Blocking;
 using System.Collections.Concurrent;
 
-    namespace codecrafters_redis.src
+namespace codecrafters_redis.src.Storage
     {
-        public sealed class InMemoryStore
+        public sealed class InMemoryStorage
         {
             private const string WrongTypeMessage =
                 "WRONGTYPE Operation against a key holding the wrong kind of value";
@@ -248,7 +248,7 @@ using System.Collections.Concurrent;
 
         public static class StoreProvider
         {
-            public static InMemoryStore Instance { get; } = new();
+            public static InMemoryStorage Instance { get; } = new();
         }
     }
 

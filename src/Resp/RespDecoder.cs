@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace codecrafters_redis.src
+namespace codecrafters_redis.src.Resp
 {
 
     // This class is responsible for decoding RESP (Redis Serialization Protocol) messages.

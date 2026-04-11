@@ -1,6 +1,6 @@
 using codecrafters_redis.src.Commands;
 
-namespace codecrafters_redis.src
+namespace codecrafters_redis.src.Client
 {
     public sealed class ClientSession
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using codecrafters_redis.src.RedisValues;
 
-namespace codecrafters_redis.src
+namespace codecrafters_redis.src.Resp
 {
     public static class RespEncoder
     {

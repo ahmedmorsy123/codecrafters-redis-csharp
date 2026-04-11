@@ -108,5 +108,6 @@
         public static bool operator !=(StreamId a, StreamId b) => a.CompareTo(b) != 0;
 
         public override string ToString() => $"{Timestamp}-{Sequence}";
+ 
     }
 }
