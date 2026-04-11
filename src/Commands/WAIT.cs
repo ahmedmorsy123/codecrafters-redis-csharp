@@ -45,7 +45,7 @@ namespace codecrafters_redis.src.Commands
                 // we should send REPLCONF GETACK * to all replicas and wait for their ACKs
                 // and if we receive ACKs from at least minReplicas replicas before timeout, we return the number of replicas that acknowledged
                 // if we don't receive ACKs from at least minReplicas replicas before timeout, we return the number of replicas that acknowledged
-                _ = ServerInfo.Replicas.PropagateAsync(["REPLCONF", "GETACK", "*"]);
+                await ServerInfo.Replicas.PropagateAsync(["REPLCONF", "GETACK", "*"]);
 
                 long targetOffset = ServerInfo.MasterReplOffset;
                 var startTime = DateTime.UtcNow;

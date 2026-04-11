@@ -1,6 +1,7 @@
 using codecrafters_redis.src.Client;
 using codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Resp;
+using System.Text;
 
 namespace codecrafters_redis.src.Server;
 
@@ -70,6 +71,7 @@ public sealed class CommandDispatcher
 
         if (!ServerInfo.IsReplica && handler.IsWrite)
         {
+            ServerInfo.MasterReplOffset += Encoding.UTF8.GetByteCount(RespEncoder.EncodeArray(originalCommandWithArgs));
             await ServerInfo.Replicas.PropagateAsync(originalCommandWithArgs);
         }
     }
