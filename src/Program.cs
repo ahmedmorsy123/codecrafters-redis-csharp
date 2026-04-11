@@ -8,21 +8,7 @@ ServerOptionsParser.Apply(args);
 
 if (ServerInfo.ReplicaOfHost is not null && ServerInfo.ReplicaOfPort is not null)
 {
-    _ = Task.Run(async () =>
-    {
-        try
-        {
-            await using var master = new MasterClient();
-            await master.ConnectAsync(ServerInfo.ReplicaOfHost, ServerInfo.ReplicaOfPort.Value);
-            await master.SendAndReceiveAsync(["PING"]);
-            await master.SendAsync(["REPLCONF", "listening-port", ServerInfo.Port.ToString()!]);
-            await master.SendAsync(["REPLCONF", "capa", "psync2"]);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Failed to connect to master: {ex.Message}");
-        }
-    });
+    _ = ReplicaBootstrapper.RunAsync();
 }
 
 var handlers = CommandHandlerRegistry.BuildFromAssembly(Assembly.GetExecutingAssembly());
