@@ -14,8 +14,7 @@ namespace codecrafters_redis.src.Commands
         {
             // args[0] is the section name
 
-            string infoLine = $"{nameof(ServerInfo.role)}:{ServerInfo.role}";
-
+            string infoLine = ServerInfo.GetInfoLine("role");
             return Task.FromResult(RespEncoder.EncodeBulkString(infoLine));
         }
     }
