@@ -25,6 +25,9 @@ namespace codecrafters_redis.src.Commands
             // Decode Base64 -> raw RDB bytes
             byte[] rdbRawBytes = Convert.FromBase64String(rdbBase64);
             await session.SendBytesAsync(RespEncoder.EncodeRDBFile(rdbRawBytes));
+
+            // Keep the connection open; the handler loop will continue and the socket
+            // is used for streaming propagated commands.
             return;
         }
     }

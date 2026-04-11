@@ -31,6 +31,11 @@ public sealed class ReplicaConnectionManager
         {
             try
             {
+                if (!socket.Connected)
+                {
+                    Unregister(socket);
+                    continue;
+                }
                 await socket.SendAsync(bytes, SocketFlags.None, cancellationToken);
             }
             catch
