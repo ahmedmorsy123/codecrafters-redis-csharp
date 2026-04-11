@@ -7,7 +7,7 @@ namespace codecrafters_redis.src.Replication;
 
 public sealed class ReplicaConnectionManager
 {
-    private readonly ConcurrentDictionary<Socket, byte> _replicas = new();
+    private readonly ConcurrentDictionary<Socket, long> _replicas = new();
 
     public int ConnectedCount => _replicas.Count;
 
@@ -19,6 +19,19 @@ public sealed class ReplicaConnectionManager
     public void Unregister(Socket replicaSocket)
     {
         _replicas.TryRemove(replicaSocket, out _);
+    }
+
+    public void UpdateOffset(Socket replicaSocket, long offset)
+    {
+        if (_replicas.ContainsKey(replicaSocket))
+        {
+            _replicas[replicaSocket] = offset;
+        }
+    }
+
+    public int GetReplicasWithOffset(long targetOffset)
+    {
+        return _replicas.Values.Count(offset => offset >= targetOffset);
     }
 
     public async Task PropagateAsync(IReadOnlyList<string> commandWithArgs, CancellationToken cancellationToken = default)

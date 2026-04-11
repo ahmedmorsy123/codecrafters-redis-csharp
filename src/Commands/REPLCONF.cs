@@ -20,6 +20,18 @@ namespace codecrafters_redis.src.Commands
                 return;
             }
 
+            if (args.Length > 1 && args[0].Equals("ACK", StringComparison.OrdinalIgnoreCase))
+            {
+                if (long.TryParse(args[1], out long offset))
+                {
+                    if (session.ClientSocket != null)
+                    {
+                        ServerInfo.Replicas.UpdateOffset(session.ClientSocket, offset);
+                    }
+                }
+                return; // Replicas don't expect a response for ACK
+            }
+
             await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }

@@ -26,19 +26,50 @@ namespace codecrafters_redis.src.Commands
                 await session.SendStringAsync(RespEncoder.EncodeInteger(0));
                 return;
             }
-            else
+            else if (ServerInfo.MasterReplOffset == 0)
             {
+                
+                    var startTime = DateTime.UtcNow;
+                    while (ServerInfo.Replicas.ConnectedCount < minReplicas)
+                    {
+                        if ((DateTime.UtcNow - startTime).TotalMilliseconds >= timeoutMs)
+                        {
+                            break;
+                        }
+                        await Task.Delay(100);
+                    }
+                    
+                    await session.SendStringAsync(RespEncoder.EncodeInteger(ServerInfo.Replicas.ConnectedCount));
+            }else
+            {
+                // we should send REPLCONF GETACK * to all replicas and wait for their ACKs
+                // and if we receive ACKs from at least minReplicas replicas before timeout, we return the number of replicas that acknowledged
+                // if we don't receive ACKs from at least minReplicas replicas before timeout, we return the number of replicas that acknowledged
+                _ = ServerInfo.Replicas.PropagateAsync(["REPLCONF", "GETACK", "*"]);
+
+                long targetOffset = ServerInfo.MasterReplOffset;
                 var startTime = DateTime.UtcNow;
-                while (ServerInfo.Replicas.ConnectedCount < minReplicas)
+                int currentAcks = 0;
+
+                while (true)
                 {
+                    currentAcks = ServerInfo.Replicas.GetReplicasWithOffset(targetOffset);
+                    if (currentAcks >= minReplicas)
+                    {
+                        break;
+                    }
+
                     if ((DateTime.UtcNow - startTime).TotalMilliseconds >= timeoutMs)
                     {
                         break;
                     }
-                    await Task.Delay(100);
+
+                    await Task.Delay(50);
                 }
+
+                await session.SendStringAsync(RespEncoder.EncodeInteger(currentAcks));
             }
-            await session.SendStringAsync(RespEncoder.EncodeInteger(ServerInfo.Replicas.ConnectedCount));
         }
     }
 }
+
