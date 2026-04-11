@@ -95,10 +95,12 @@ namespace codecrafters_redis.src.Resp
         public static byte[] EncodeRDBFile(byte[] rdbData)
         {
             byte[] header = Encoding.ASCII.GetBytes($"${rdbData.Length}\r\n");
+            byte[] trailer = Encoding.ASCII.GetBytes("\r\n");
 
-            byte[] result = new byte[header.Length + rdbData.Length];
+            byte[] result = new byte[header.Length + rdbData.Length + trailer.Length];
             Buffer.BlockCopy(header, 0, result, 0, header.Length);
             Buffer.BlockCopy(rdbData, 0, result, header.Length, rdbData.Length);
+            Buffer.BlockCopy(trailer, 0, result, header.Length + rdbData.Length, trailer.Length);
 
             return result;
         }

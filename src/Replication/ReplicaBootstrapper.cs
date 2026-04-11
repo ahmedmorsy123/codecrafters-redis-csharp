@@ -50,7 +50,8 @@ namespace codecrafters_redis.src.Replication
             // Then an endless stream of RESP arrays (propagated commands).
 
             _ = await master.ReadSimpleStringLineAsync(cancellationToken); // +FULLRESYNC ...
-            await master.ReadBulkBytesAsync(cancellationToken); // RDB payload (ignored for now)
+            await master.ReadBulkBytesAsync(cancellationToken); // Start reading RDB payload
+            await master.ReadBulkBytesAsync(cancellationToken); // Read until the RDB '$' header
 
             while (!cancellationToken.IsCancellationRequested)
             {

@@ -65,6 +65,8 @@ namespace codecrafters_redis.src.Replication
                 throw new InvalidOperationException("Not connected.");
 
             string headerText = await ReadLineAsync(cancellationToken);
+            while (headerText.Length == 0)
+                headerText = await ReadLineAsync(cancellationToken);
             if (headerText.Length < 2 || headerText[0] != '$')
                 return Array.Empty<byte>();
 
@@ -82,6 +84,7 @@ namespace codecrafters_redis.src.Replication
             if (len == 0)
             {
                 // Empty bulk string.
+                _ = await ReadExactAsync(2, cancellationToken); // trailing CRLF
                 return Array.Empty<byte>();
             }
 
@@ -93,6 +96,8 @@ namespace codecrafters_redis.src.Replication
         public async Task<IReadOnlyList<string>> ReadArrayAsync(CancellationToken cancellationToken = default)
         {
             string arrayHeader = await ReadLineAsync(cancellationToken); // *<count>
+            while (arrayHeader.Length == 0)
+                arrayHeader = await ReadLineAsync(cancellationToken);
             if (arrayHeader.Length < 2 || arrayHeader[0] != '*')
                 throw new InvalidOperationException("Expected RESP array.");
 
