@@ -64,11 +64,11 @@ namespace codecrafters_redis.src.Replication
 
                 // Re-encode and dispatch through the same pipeline.
                 string resp = codecrafters_redis.src.Resp.RespEncoder.EncodeArray(cmd);
-                int byteCount = System.Text.Encoding.UTF8.GetByteCount(resp);
-
-                ServerInfo.MasterReplOffset += byteCount;
 
                 await ApplyFramesAsync(resp);
+
+                int byteCount = System.Text.Encoding.UTF8.GetByteCount(resp);
+                ServerInfo.MasterReplOffset += byteCount;
             }
         }
 

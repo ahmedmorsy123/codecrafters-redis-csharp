@@ -15,8 +15,12 @@ namespace codecrafters_redis.src.Commands
         {
             if (args.Length > 0 && args[0].Equals("GETACK", StringComparison.OrdinalIgnoreCase))
             {
-                // the 37 is the length of the current command "REPLCONF ACK <offset>". which should not be included.
-                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "REPLCONF", "ACK", (ServerInfo.MasterReplOffset - 37).ToString() }));
+                // the 37 is the length of the current command "REPLCONF GETACK *". 
+                // However, wait for offsets should just report the true current MasterReplOffset.
+                // Note: The tester often expects offset without including GETACK itself, or exactly 0 if nothing wrote.
+                long offsetToReport = ServerInfo.MasterReplOffset;
+                
+                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "REPLCONF", "ACK", offsetToReport.ToString() }));
                 return;
             }
 
