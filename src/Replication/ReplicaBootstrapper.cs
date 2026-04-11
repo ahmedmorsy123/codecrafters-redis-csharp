@@ -24,8 +24,8 @@ namespace codecrafters_redis.src.Replication
         private static async Task SendHandShake(MasterClient master, CancellationToken cancellationToken)
         {
             await master.ConnectAsync(ServerInfo.ReplicaOfHost, ServerInfo.ReplicaOfPort.Value, cancellationToken);
-            await master.SendAsync(["PING"], cancellationToken);
-
+            await master.SendAndReceiveAsync(["PING"], cancellationToken);
+            
             await master.SendAsync(
                 ["REPLCONF", "listening-port", ServerInfo.Port.ToString()],
                 cancellationToken);

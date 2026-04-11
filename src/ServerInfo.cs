@@ -3,11 +3,8 @@
     public static class ServerInfo
     {
         public static int Port { get; set; } = 6379;
-
         public static string Role { get; set; } = "master";
-
         public static string? ReplicaOfHost { get; set; }
-
         public static int? ReplicaOfPort { get; set; }
         public static string MasterReplId { get; set; } = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
         public static int MasterReplOffset { get; set; } = 0;
