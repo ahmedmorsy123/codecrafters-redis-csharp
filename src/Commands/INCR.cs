@@ -29,9 +29,6 @@ namespace codecrafters_redis.src.Commands
                 return Task.FromResult(RespEncoder.EncodeError("ERR value is not an integer or out of range"));
             }
 
-
-            StoreProvider.Instance.NotifyKeyChanged(key);
-
             return Task.FromResult(RespEncoder.EncodeInteger(intVal));
         }
     }
