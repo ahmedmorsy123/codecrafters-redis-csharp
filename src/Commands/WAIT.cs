@@ -32,7 +32,7 @@ namespace codecrafters_redis.src.Commands
                     var startTime = DateTime.UtcNow;
                     while (ServerInfo.Replicas.ConnectedCount < minReplicas)
                     {
-                        if ((DateTime.UtcNow - startTime).TotalMilliseconds >= timeoutMs)
+                        if (timeoutMs > 0 && (DateTime.UtcNow - startTime).TotalMilliseconds >= timeoutMs)
                         {
                             break;
                         }
@@ -59,7 +59,7 @@ namespace codecrafters_redis.src.Commands
                         break;
                     }
 
-                    if ((DateTime.UtcNow - startTime).TotalMilliseconds >= timeoutMs)
+                    if (timeoutMs > 0 && (DateTime.UtcNow - startTime).TotalMilliseconds >= timeoutMs)
                     {
                         break;
                     }
