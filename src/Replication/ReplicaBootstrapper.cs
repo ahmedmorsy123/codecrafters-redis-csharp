@@ -30,11 +30,11 @@ namespace codecrafters_redis.src.Replication
                 ["REPLCONF", "listening-port", ServerInfo.Port.ToString()],
                 cancellationToken);
 
-            await master.SendAsync(
+            await master.SendAndReceiveAsync(
                 ["REPLCONF", "capa", "psync2"],
                 cancellationToken);
 
-            await master.SendAsync(["PSYNC", "?", "-1"], cancellationToken);
+            await master.SendAndReceiveAsync(["PSYNC", "?", "-1"], cancellationToken);
         }
     }
 }
