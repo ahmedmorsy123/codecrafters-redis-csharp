@@ -47,6 +47,9 @@ namespace codecrafters_redis.src.Commands
                 // Persist mutation so WATCH sees the change via key version bump.
                 StoreProvider.Instance.SetEntry(key, list);
 
+                if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
+                    await ServerInfo.Replicas.PropagateAsync(new[] { "LPOP" }.Concat(args).ToArray());
+
                 // LPOP key      → single bulk string
                 // LPOP key N    → array
                 await session.SendStringAsync(args.Length == 1

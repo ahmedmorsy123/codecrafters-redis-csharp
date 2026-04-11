@@ -10,6 +10,11 @@ namespace codecrafters_redis.src.Commands
         public string Name => "PSYNC";
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
+            if (session.ClientSocket is not null)
+            {
+                ServerInfo.Replicas.Register(session.ClientSocket);
+            }
+
             // args[0] is the replication ID, args[1] is the offset
             string fullResync = RespEncoder.EncodeSimpleString("FULLRESYNC " + ServerInfo.ReplId + " 0");
             await session.SendStringAsync(fullResync);

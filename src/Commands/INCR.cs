@@ -36,6 +36,9 @@ namespace codecrafters_redis.src.Commands
                 return;
             }
 
+            if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
+                await ServerInfo.Replicas.PropagateAsync(new[] { "INCR", key });
+
             await session.SendStringAsync(RespEncoder.EncodeInteger(intVal));
         }
     }

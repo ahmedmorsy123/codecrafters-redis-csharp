@@ -29,6 +29,8 @@ namespace codecrafters_redis.src.Commands
                 int lengthAfterPush = list.Count;
                 StoreProvider.Instance.SetEntry(key, list);
                 StoreProvider.Instance.NotifyBlpopWaiters(key); // ← unblocks BLPOP clients
+                if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
+                    await ServerInfo.Replicas.PropagateAsync(new[] { "RPUSH" }.Concat(args).ToArray());
                 await session.SendStringAsync(RespEncoder.EncodeInteger(lengthAfterPush));
             }
             catch (InvalidOperationException ex)

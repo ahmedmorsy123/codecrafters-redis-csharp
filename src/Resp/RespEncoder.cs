@@ -94,7 +94,6 @@ namespace codecrafters_redis.src.Resp
 
         public static byte[] EncodeRDBFile(byte[] rdbData)
         {
-            // RESP Bulk String: $<len>\r\n<payload>\r\n
             byte[] header = Encoding.ASCII.GetBytes($"${rdbData.Length}\r\n");
 
             byte[] result = new byte[header.Length + rdbData.Length];

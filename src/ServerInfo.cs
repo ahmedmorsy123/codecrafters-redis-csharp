@@ -2,6 +2,8 @@
 {
     public static class ServerInfo
     {
+        public static Replication.ReplicaConnectionManager Replicas { get; } = new();
+
         public static int Port { get; set; } = 6379;
         public static string Role { get; set; } = "master";
         public static string ReplId { get; set; } = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";

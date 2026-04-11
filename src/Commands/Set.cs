@@ -23,6 +23,8 @@ namespace codecrafters_redis.src.Commands
             if (args.Length == 2)
             {
                 StoreProvider.Instance.SetEntry(key, new RedisString(value));
+                if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
+                    await ServerInfo.Replicas.PropagateAsync(new[] { "SET", key, value });
                 await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
                 return;
             }
@@ -45,6 +47,8 @@ namespace codecrafters_redis.src.Commands
             }
 
             StoreProvider.Instance.SetEntry(key, new RedisString(value), ttl);
+            if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
+                await ServerInfo.Replicas.PropagateAsync(new[] { "SET", key, value, args[2], args[3] });
             await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }

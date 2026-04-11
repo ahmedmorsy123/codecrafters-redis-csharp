@@ -63,6 +63,9 @@ namespace codecrafters_redis.src.Commands
             StoreProvider.Instance.SetEntry(streamKey, stream);
             StoreProvider.Instance.NotifyKeyChanged(streamKey);
 
+            if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
+                await ServerInfo.Replicas.PropagateAsync(new[] { "XADD" }.Concat(args).ToArray());
+
             await session.SendStringAsync(RespEncoder.EncodeBulkString(id.ToString()));
 
         }
