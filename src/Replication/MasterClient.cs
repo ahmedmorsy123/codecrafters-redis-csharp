@@ -84,12 +84,10 @@ namespace codecrafters_redis.src.Replication
             if (len == 0)
             {
                 // Empty bulk string.
-                _ = await ReadExactAsync(2, cancellationToken); // trailing CRLF
                 return Array.Empty<byte>();
             }
 
             byte[] payload = await ReadExactAsync(len, cancellationToken);
-            _ = await ReadExactAsync(2, cancellationToken); // trailing CRLF
             return payload;
         }
 

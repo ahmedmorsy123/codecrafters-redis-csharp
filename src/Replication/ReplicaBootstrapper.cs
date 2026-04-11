@@ -29,17 +29,17 @@ namespace codecrafters_redis.src.Replication
         private static async Task SendHandShake(MasterClient master, CancellationToken cancellationToken)
         {
             await master.ConnectAsync(ServerInfo.ReplicaOfHost, ServerInfo.ReplicaOfPort.Value, cancellationToken);
-            await master.SendAndReceiveAsync(["PING"], cancellationToken);
-            
-            await master.SendAndReceiveAsync(
-                ["REPLCONF", "listening-port", ServerInfo.Port.ToString()],
-                cancellationToken);
 
-            await master.SendAndReceiveAsync(
-                ["REPLCONF", "capa", "psync2"],
-                cancellationToken);
+            await master.SendAsync(["PING"], cancellationToken);
+            _ = await master.ReadSimpleStringLineAsync(cancellationToken);
 
-            await master.SendAndReceiveAsync(["PSYNC", "?", "-1"], cancellationToken);
+            await master.SendAsync(["REPLCONF", "listening-port", ServerInfo.Port.ToString()], cancellationToken);
+            _ = await master.ReadSimpleStringLineAsync(cancellationToken);
+
+            await master.SendAsync(["REPLCONF", "capa", "psync2"], cancellationToken);
+            _ = await master.ReadSimpleStringLineAsync(cancellationToken);
+
+            await master.SendAsync(["PSYNC", "?", "-1"], cancellationToken);
         }
 
         private static async Task PumpReplicationStreamAsync(MasterClient master, CancellationToken cancellationToken)
