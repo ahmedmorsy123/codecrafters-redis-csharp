@@ -9,6 +9,8 @@ public sealed class ReplicaConnectionManager
 {
     private readonly ConcurrentDictionary<Socket, byte> _replicas = new();
 
+    public int ConnectedCount => _replicas.Count;
+
     public void Register(Socket replicaSocket)
     {
         _replicas.TryAdd(replicaSocket, 0);
