@@ -11,19 +11,22 @@ namespace codecrafters_redis.src.Commands
     public class LLEN : ICommand
     {
         public string Name => "LLEN";
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 1)
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'LLEN' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'LLEN' command"));
+                return;
+            }
 
             try
             {
                 RedisList? list = StoreProvider.Instance.Get<RedisList>(args[0]);
-                return Task.FromResult(RespEncoder.EncodeInteger(list?.Count ?? 0));
+                await session.SendStringAsync(RespEncoder.EncodeInteger(list?.Count ?? 0));
             }
             catch (InvalidOperationException ex)
             {
-                return Task.FromResult(RespEncoder.EncodeError(ex.Message));
+                await session.SendStringAsync(RespEncoder.EncodeError(ex.Message));
             }
         }
     }

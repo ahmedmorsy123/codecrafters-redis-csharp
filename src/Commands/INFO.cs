@@ -10,14 +10,14 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "INFO";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             // args[0] is the section name
 
             string infoLine = ServerInfo.GetInfoLine("role");
             string masterReplId = ServerInfo.GetInfoLine("master_replid");
             string masterReplOffset = ServerInfo.GetInfoLine("master_repl_offset");
-            return Task.FromResult(RespEncoder.EncodeBulkString(infoLine + "\n" + masterReplId + "\n" + masterReplOffset));
+            await session.SendStringAsync(RespEncoder.EncodeBulkString(infoLine + "\n" + masterReplId + "\n" + masterReplOffset));
         }
     }
 }

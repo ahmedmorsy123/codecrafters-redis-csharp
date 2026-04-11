@@ -12,11 +12,14 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "XADD";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
 
             if (args.Length < 3 || args.Length % 2 != 0)
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XADD' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'XADD' command"));
+                return;
+            }
 
             string streamKey = args[0];
             string requestedId = args[1];
@@ -36,23 +39,31 @@ namespace codecrafters_redis.src.Commands
             }
             catch (FormatException)
             {
-                return Task.FromResult(RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument"));
+                await session.SendStringAsync(RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument"));
+                return;
             }
             catch (OverflowException)
             {
-                return Task.FromResult(RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument"));
+                await session.SendStringAsync(RespEncoder.EncodeError("ERR Invalid stream ID specified as stream command argument"));
+                return;
             }
 
             if (id == StreamId.Zero)
-                return Task.FromResult(RespEncoder.EncodeError("ERR The ID specified in XADD must be greater than 0-0"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("ERR The ID specified in XADD must be greater than 0-0"));
+                return;
+            }
 
             if(id <= previousLastId)
-                return Task.FromResult(RespEncoder.EncodeError("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
+                return;
+            }
 
             StoreProvider.Instance.SetEntry(streamKey, stream);
             StoreProvider.Instance.NotifyKeyChanged(streamKey);
 
-            return Task.FromResult(RespEncoder.EncodeBulkString(id.ToString()));
+            await session.SendStringAsync(RespEncoder.EncodeBulkString(id.ToString()));
 
         }
     }

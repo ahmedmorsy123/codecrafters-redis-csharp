@@ -9,21 +9,33 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "XREAD";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length == 0)
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
+                return;
+            }
 
             if (args[0].Equals("streams", StringComparison.OrdinalIgnoreCase))
-                return ExecuteNonBlockingAsync(args);
+            {
+                await session.SendStringAsync(await ExecuteNonBlockingAsync(args));
+                return;
+            }
 
             if (args.Length < 4 || !args[0].Equals("block", StringComparison.OrdinalIgnoreCase))
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'XREAD' command"));
+                return;
+            }
 
             if (!long.TryParse(args[1], out long timeout) || timeout < 0)
-                return Task.FromResult(RespEncoder.EncodeError("timeout is not an integer or out of range"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("timeout is not an integer or out of range"));
+                return;
+            }
 
-            return ExecuteBlockingAsync(args.Skip(2).ToArray(), timeout);
+            await session.SendStringAsync(await ExecuteBlockingAsync(args.Skip(2).ToArray(), timeout));
         }
 
         private async Task<string> ExecuteBlockingAsync(string[] args, long timeout)

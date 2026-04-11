@@ -10,17 +10,19 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "EXEC";
 
-        public async Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (!session.InTransaction)
             {
-                return RespEncoder.EncodeError("ERR EXEC without MULTI");
+                await session.SendStringAsync(RespEncoder.EncodeError("ERR EXEC without MULTI"));
+                return;
             }
 
             if (session.Watcher.IsAnyWatchedKeyModified())
             {
                 session.ResetTransaction();
-                return RespEncoder.EncodeNullArray();
+                await session.SendStringAsync(RespEncoder.EncodeNullArray());
+                return;
             }
 
             var queued = session.QueuedCommands.ToArray();
@@ -30,11 +32,12 @@ namespace codecrafters_redis.src.Commands
             result.Append('*').Append(queued.Length).Append("\r\n");
             foreach (var item in queued)
             {
-                string commandResult = await item.Command.ExecuteAsync(item.Args, session);
-                result.Append(commandResult);
+                using var _ = session.CaptureWrites(out var cmdBuf);
+                await item.Command.ExecuteAsync(item.Args, session);
+                result.Append(cmdBuf);
             }
 
-            return result.ToString();
+            await session.SendStringAsync(result.ToString());
         }
     }
 }

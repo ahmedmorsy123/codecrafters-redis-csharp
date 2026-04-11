@@ -11,39 +11,51 @@ namespace codecrafters_redis.src.Commands
     public class LPOP : ICommand
     {
         public string Name => "LPOP";
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length < 1 || args.Length > 2)
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'LPOP' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'LPOP' command"));
+                return;
+            }
 
             string key = args[0];
             int count = 1;
 
             if (args.Length == 2 && (!int.TryParse(args[1], out count) || count <= 0))
-                return Task.FromResult(RespEncoder.EncodeError("count must be a positive integer"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("count must be a positive integer"));
+                return;
+            }
 
             try
             {
                 RedisList? list = StoreProvider.Instance.Get<RedisList>(key);
                 if (list is null)
-                    return Task.FromResult(RespEncoder.EncodeNull());
+                {
+                    await session.SendStringAsync(RespEncoder.EncodeNull());
+                    return;
+                }
 
                 List<string> popped = list.LPop(count);
                 if (popped.Count == 0)
-                    return Task.FromResult(RespEncoder.EncodeNull());
+                {
+                    await session.SendStringAsync(RespEncoder.EncodeNull());
+                    return;
+                }
 
                 // Persist mutation so WATCH sees the change via key version bump.
                 StoreProvider.Instance.SetEntry(key, list);
 
                 // LPOP key      → single bulk string
                 // LPOP key N    → array
-                return args.Length == 1
-                    ? Task.FromResult(RespEncoder.EncodeBulkString(popped[0]))
-                    : Task.FromResult(RespEncoder.EncodeArray(popped));
+                await session.SendStringAsync(args.Length == 1
+                    ? RespEncoder.EncodeBulkString(popped[0])
+                    : RespEncoder.EncodeArray(popped));
             }
             catch (InvalidOperationException ex)
             {
-                return Task.FromResult(RespEncoder.EncodeError(ex.Message));
+                await session.SendStringAsync(RespEncoder.EncodeError(ex.Message));
             }
         }
     }

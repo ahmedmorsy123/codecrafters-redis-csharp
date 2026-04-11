@@ -7,21 +7,16 @@ namespace codecrafters_redis.src.Commands
     public class PSYNC : ICommand
     {
         public string Name => "PSYNC";
-        public async Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             // args[0] is the replication ID, args[1] is the offset
             string fullResync = RespEncoder.EncodeSimpleString("FULLRESYNC " + ServerInfo.ReplId + " 0");
-            await session.SendBytesAsync(Encoding.UTF8.GetBytes(fullResync));
+            await session.SendStringAsync(fullResync);
 
-            // Send an (empty) RDB snapshot as a RESP Bulk String: $<len>\r\n<bytes>\r\n
-            // Stage 9 expects the master to stream an RDB after FULLRESYNC.
-            var rdbBytes = Array.Empty<byte>();
-
-            string rdb = RespEncoder.EncodeRDBFile(rdbBytes);
+            var rdbBytes = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==";
+            string rdb = RespEncoder.EncodeRDBFile(Encoding.ASCII.GetBytes(rdbBytes));
             await session.SendBytesAsync(Encoding.ASCII.GetBytes(rdb));
-
-            // Response already written directly to the socket.
-            return string.Empty;
+            return;
         }
     }
 }

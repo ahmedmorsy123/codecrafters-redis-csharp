@@ -9,15 +9,15 @@ namespace codecrafters_redis.src.Commands
     {
 
         public string Name => "PING";
-        public async Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length == 0)
             {
-                return "+PONG\r\n";
+                await session.SendStringAsync("+PONG\r\n");
             }
             else
             {
-                return "+" + args[0] + "\r\n";
+                await session.SendStringAsync("+" + args[0] + "\r\n");
             }
         }
     }

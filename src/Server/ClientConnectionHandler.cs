@@ -30,13 +30,7 @@ public sealed class ClientConnectionHandler
                 }
 
                 string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                string responseText = await _dispatcher.DispatchAsync(message, session);
-
-                if (!string.IsNullOrEmpty(responseText))
-                {
-                    byte[] response = Encoding.UTF8.GetBytes(responseText);
-                    await client.SendAsync(response, SocketFlags.None);
-                }
+                await _dispatcher.DispatchAsync(message, session);
             }
         }
         finally

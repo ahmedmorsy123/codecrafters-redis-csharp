@@ -12,10 +12,13 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "INCR";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 1)
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'INCR' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'INCR' command"));
+                return;
+            }
 
             string key = args[0];
             RedisString value = StoreProvider.Instance.GetOrCreate<RedisString>(key, () => new RedisString("0"));
@@ -29,10 +32,11 @@ namespace codecrafters_redis.src.Commands
             }
             else
             {
-                return Task.FromResult(RespEncoder.EncodeError("ERR value is not an integer or out of range"));
+                await session.SendStringAsync(RespEncoder.EncodeError("ERR value is not an integer or out of range"));
+                return;
             }
 
-            return Task.FromResult(RespEncoder.EncodeInteger(intVal));
+            await session.SendStringAsync(RespEncoder.EncodeInteger(intVal));
         }
     }
 }

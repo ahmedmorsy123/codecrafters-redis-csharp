@@ -10,10 +10,10 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "UNWATCH";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             session.Watcher.UnwatchAll();
-            return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
+            await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }
 }

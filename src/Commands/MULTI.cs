@@ -10,16 +10,17 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "MULTI";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (session.Watcher.IsAnyWatchedKeyModified())
             {
                 session.Watcher.UnwatchAll();
-                return Task.FromResult(RespEncoder.EncodeError("ERR WATCHED key modified"));
+                await session.SendStringAsync(RespEncoder.EncodeError("ERR WATCHED key modified"));
+                return;
             }
 
             session.InTransaction = true;
-            return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
+            await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }
 }

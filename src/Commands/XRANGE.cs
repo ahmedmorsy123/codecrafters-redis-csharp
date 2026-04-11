@@ -11,10 +11,13 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "XRANGE";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length < 3)
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'XRANGE' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'XRANGE' command"));
+                return;
+            }
 
             string streamKey = args[0];
 
@@ -27,7 +30,7 @@ namespace codecrafters_redis.src.Commands
 
             RedisStream stream = StoreProvider.Instance.GetOrCreate<RedisStream>(streamKey, () => new RedisStream());
             IReadOnlyList<StreamEntry> entries = stream.Range(startId, endId);
-            return Task.FromResult(RespEncoder.EncodeStreamEntries(entries));
+            await session.SendStringAsync(RespEncoder.EncodeStreamEntries(entries));
         }
     }
 }

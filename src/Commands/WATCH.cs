@@ -10,16 +10,18 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "WATCH";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (session.InTransaction)
             {
-                return Task.FromResult(RespEncoder.EncodeError("ERR WATCH inside MULTI is not allowed"));
+                await session.SendStringAsync(RespEncoder.EncodeError("ERR WATCH inside MULTI is not allowed"));
+                return;
             }
 
             if (args.Length < 1)
             {
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'WATCH' command"));
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'WATCH' command"));
+                return;
             }
 
             foreach (string key in args)
@@ -27,7 +29,7 @@ namespace codecrafters_redis.src.Commands
                 session.Watcher.WatchKey(key);
             }
 
-            return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
+            await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }
 }

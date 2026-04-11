@@ -9,10 +9,13 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "SET";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 2 && args.Length != 4)
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'SET' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'SET' command"));
+                return;
+            }
 
             string key = args[0];
             string value = args[1];
@@ -20,11 +23,15 @@ namespace codecrafters_redis.src.Commands
             if (args.Length == 2)
             {
                 StoreProvider.Instance.SetEntry(key, new RedisString(value));
-                return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
+                await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
+                return;
             }
 
             if (!long.TryParse(args[3], out long ttlValue) || ttlValue <= 0)
-                return Task.FromResult(RespEncoder.EncodeError("invalid expire time in set"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("invalid expire time in set"));
+                return;
+            }
 
             TimeSpan ttl;
             if (args[2].Equals("PX", StringComparison.OrdinalIgnoreCase))
@@ -32,10 +39,13 @@ namespace codecrafters_redis.src.Commands
             else if (args[2].Equals("EX", StringComparison.OrdinalIgnoreCase))
                 ttl = TimeSpan.FromSeconds(ttlValue);
             else
-                return Task.FromResult(RespEncoder.EncodeError("syntax error"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("syntax error"));
+                return;
+            }
 
             StoreProvider.Instance.SetEntry(key, new RedisString(value), ttl);
-            return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
+            await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }
 }

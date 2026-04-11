@@ -9,21 +9,24 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "GET";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 1)
-                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'GET' command"));
+            {
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'GET' command"));
+                return;
+            }
 
             try
             {
                 RedisString? entry = StoreProvider.Instance.Get<RedisString>(args[0]);
-                return entry is null
-                    ? Task.FromResult(RespEncoder.EncodeNull())
-                    : Task.FromResult(RespEncoder.EncodeBulkString(entry.Value));
+                await session.SendStringAsync(entry is null
+                    ? RespEncoder.EncodeNull()
+                    : RespEncoder.EncodeBulkString(entry.Value));
             }
             catch (InvalidOperationException ex)
             {
-                return Task.FromResult(RespEncoder.EncodeError(ex.Message));
+                await session.SendStringAsync(RespEncoder.EncodeError(ex.Message));
             }
         }
     }

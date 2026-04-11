@@ -10,15 +10,15 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "ECHO";
 
-        public async Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 1)
             {
-                return RespEncoder.EncodeError("wrong number of arguments for 'ECHO' command");
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'ECHO' command"));
             }
             else
             {
-                return RespEncoder.EncodeBulkString(args[0]);
+                await session.SendStringAsync(RespEncoder.EncodeBulkString(args[0]));
             }
         }
     }

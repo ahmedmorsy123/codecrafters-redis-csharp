@@ -10,9 +10,9 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "REPLCONF";
 
-        public Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
-            return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
+            await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }
 }

@@ -9,11 +9,12 @@ namespace codecrafters_redis.src.Commands
     {
         public string Name => "BLPOP";
 
-        public async Task<string> ExecuteAsync(string[] args, ClientSession session)
+        public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length < 2)
             {
-                return RespEncoder.EncodeError("wrong number of arguments for 'BLPOP' command");
+                await session.SendStringAsync(RespEncoder.EncodeError("wrong number of arguments for 'BLPOP' command"));
+                return;
             }
 
             string[] keys = args.Take(args.Length - 1).ToArray();
@@ -21,7 +22,8 @@ namespace codecrafters_redis.src.Commands
 
             if (!double.TryParse(timeoutText, NumberStyles.Float, CultureInfo.InvariantCulture, out double timeoutSeconds) || timeoutSeconds < 0)
             {
-                return RespEncoder.EncodeError("timeout is not a float or out of range");
+                await session.SendStringAsync(RespEncoder.EncodeError("timeout is not a float or out of range"));
+                return;
             }
 
             TimeSpan timeout = TimeSpan.FromSeconds(timeoutSeconds);
@@ -30,14 +32,15 @@ namespace codecrafters_redis.src.Commands
                 (string Key, string Value)? result = await StoreProvider.Instance.BlockingLPopAsync(keys, timeout);
                 if (!result.HasValue)
                 {
-                    return RespEncoder.EncodeNullArray();
+                    await session.SendStringAsync(RespEncoder.EncodeNullArray());
+                    return;
                 }
 
-                return RespEncoder.EncodeArray(new List<string> { result.Value.Key, result.Value.Value });
+                await session.SendStringAsync(RespEncoder.EncodeArray(new List<string> { result.Value.Key, result.Value.Value }));
             }
             catch (InvalidOperationException ex)
             {
-                return RespEncoder.EncodeError(ex.Message);
+                await session.SendStringAsync(RespEncoder.EncodeError(ex.Message));
             }
         }
     }

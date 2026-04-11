@@ -13,20 +13,26 @@ public sealed class CommandDispatcher
         _handlers = handlers;
     }
 
-    public async Task<string> DispatchAsync(string message, ClientSession session)
+    public async Task DispatchAsync(string message, ClientSession session)
     {
         List<string> commands = await RespDecoder.DecodeAsync(message);
 
         Console.Error.WriteLine($"Received: {string.Join(", ", commands)}");
 
         if (commands.Count == 0)
-            return RespEncoder.EncodeError("empty command");
+        {
+            await session.SendStringAsync(RespEncoder.EncodeError("empty command"));
+            return;
+        }
 
         string commandName = commands[0];
         string[] args = commands.Skip(1).ToArray();
 
         if (!_handlers.TryGetValue(commandName, out var handler))
-            return RespEncoder.EncodeError($"unknown command '{commandName}'");
+        {
+            await session.SendStringAsync(RespEncoder.EncodeError($"unknown command '{commandName}'"));
+            return;
+        }
 
         if (session.InTransaction
             && !commandName.Equals("EXEC", StringComparison.OrdinalIgnoreCase)
@@ -34,9 +40,10 @@ public sealed class CommandDispatcher
             && !commandName.Equals("WATCH", StringComparison.OrdinalIgnoreCase))
         {
             session.QueuedCommands.Add((handler, args));
-            return RespEncoder.EncodeSimpleString("QUEUED");
+            await session.SendStringAsync(RespEncoder.EncodeSimpleString("QUEUED"));
+            return;
         }
 
-        return await handler.ExecuteAsync(args, session);
+        await handler.ExecuteAsync(args, session);
     }
 }
