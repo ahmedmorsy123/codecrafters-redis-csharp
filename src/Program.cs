@@ -1,9 +1,28 @@
 using codecrafters_redis.src;
+using codecrafters_redis.src.Replication;
 using codecrafters_redis.src.Server;
 using System.Net;
 using System.Reflection;
 
 ServerOptionsParser.Apply(args);
+
+if (ServerInfo.ReplicaOfHost is not null && ServerInfo.ReplicaOfPort is not null)
+{
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await using var master = new MasterClient();
+            await master.ConnectAsync(ServerInfo.ReplicaOfHost, ServerInfo.ReplicaOfPort.Value);
+            string response = await master.SendAndReceiveAsync(["PING"]);
+            Console.Error.WriteLine($"Master response is [{response}]");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Failed to connect to master: {ex.Message}");
+        }
+    });
+}
 
 var handlers = CommandHandlerRegistry.BuildFromAssembly(Assembly.GetExecutingAssembly());
 var dispatcher = new CommandDispatcher(handlers);
