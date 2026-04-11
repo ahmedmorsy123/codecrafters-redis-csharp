@@ -14,8 +14,9 @@ if (ServerInfo.ReplicaOfHost is not null && ServerInfo.ReplicaOfPort is not null
         {
             await using var master = new MasterClient();
             await master.ConnectAsync(ServerInfo.ReplicaOfHost, ServerInfo.ReplicaOfPort.Value);
-            string response = await master.SendAndReceiveAsync(["PING"]);
-            Console.Error.WriteLine($"Master response is [{response}]");
+            await master.SendAndReceiveAsync(["PING"]);
+            await master.SendAsync(["REPLCONF", "listening-port", ServerInfo.ReplicaOfPort.ToString()!]);
+            await master.SendAsync(["REPLCONF", "capa", "psync2"]);
         }
         catch (Exception ex)
         {
