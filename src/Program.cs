@@ -82,7 +82,8 @@ static async Task<string> ProcessRequestAsync(string message, Dictionary<string,
         return RespEncoder.EncodeError($"unknown command '{commandName}'");
     }
 
-    if (session.InTransaction && !commandName.Equals("EXEC", StringComparison.OrdinalIgnoreCase) && !commandName.Equals("DISCARD", StringComparison.OrdinalIgnoreCase))
+    
+    if (session.InTransaction && !commandName.Equals("EXEC", StringComparison.OrdinalIgnoreCase) && !commandName.Equals("DISCARD", StringComparison.OrdinalIgnoreCase) && !commandName.Equals("WATCH",StringComparison.OrdinalIgnoreCase))
     {
         session.QueuedCommands.Add((handler, args));
         return RespEncoder.EncodeSimpleString("QUEUED");
