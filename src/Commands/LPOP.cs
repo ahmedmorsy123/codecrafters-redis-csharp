@@ -29,6 +29,9 @@ namespace codecrafters_redis.src.Commands
                 if (popped.Count == 0)
                     return Task.FromResult(RespEncoder.EncodeNull());
 
+                // Persist mutation so WATCH sees the change via key version bump.
+                StoreProvider.Instance.SetEntry(key, list);
+
                 // LPOP key      → single bulk string
                 // LPOP key N    → array
                 return args.Length == 1

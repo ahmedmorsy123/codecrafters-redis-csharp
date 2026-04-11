@@ -15,7 +15,16 @@ namespace codecrafters_redis.src.Commands
                 return Task.FromResult(RespEncoder.EncodeError("ERR WATCH inside MULTI is not allowed"));
             }
 
-            // Implementation for WATCH command
+            if (args.Length < 1)
+            {
+                return Task.FromResult(RespEncoder.EncodeError("wrong number of arguments for 'WATCH' command"));
+            }
+
+            foreach (string key in args)
+            {
+                session.Watcher.WatchKey(key);
+            }
+
             return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
         }
     }

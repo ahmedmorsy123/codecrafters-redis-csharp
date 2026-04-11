@@ -21,6 +21,7 @@ namespace codecrafters_redis.src.Commands
                 RedisList list = StoreProvider.Instance.GetOrCreate<RedisList>(key, () => new RedisList());
                 list.LPush(values);
                 int lengthAfterPush = list.Count;
+                StoreProvider.Instance.SetEntry(key, list);
                 StoreProvider.Instance.NotifyBlpopWaiters(key); // ← unblocks BLPOP clients
                 return Task.FromResult(RespEncoder.EncodeInteger(lengthAfterPush));
             }

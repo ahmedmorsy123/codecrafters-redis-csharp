@@ -6,12 +6,15 @@ namespace codecrafters_redis.src
     {
         public bool InTransaction { get; set; }
 
+        public ClientWatcher Watcher { get; } = new();
+
         public List<(ICommand Command, string[] Args)> QueuedCommands { get; } = new();
 
         public void ResetTransaction()
         {
             InTransaction = false;
             QueuedCommands.Clear();
+            Watcher.UnwatchAll();
         }
     }
 }

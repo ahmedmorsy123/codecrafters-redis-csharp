@@ -10,6 +10,12 @@ namespace codecrafters_redis.src.Commands
 
         public Task<string> ExecuteAsync(string[] args, ClientSession session)
         {
+            if (session.Watcher.IsAnyWatchedKeyModified())
+            {
+                session.Watcher.UnwatchAll();
+                return Task.FromResult(RespEncoder.EncodeError("ERR WATCHED key modified"));
+            }
+
             session.InTransaction = true;
             return Task.FromResult(RespEncoder.EncodeSimpleString("OK"));
         }

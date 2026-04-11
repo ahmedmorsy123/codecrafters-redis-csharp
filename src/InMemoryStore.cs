@@ -12,6 +12,9 @@ using System.Collections.Concurrent;
             private readonly ConcurrentDictionary<string, StoreEntry> _entries =
                 new(StringComparer.Ordinal);
 
+            private readonly ConcurrentDictionary<string, long> _keyVersions =
+                new(StringComparer.Ordinal);
+
             private readonly KeyBlockingCoordinator _blockingCoordinator = new();
 
             private readonly object _syncRoot = new();
@@ -45,6 +48,7 @@ using System.Collections.Concurrent;
                     {
                         T newValue = factory();
                         _entries[key] = new StoreEntry(newValue, null);
+                        BumpKeyVersion(key);
                         _blockingCoordinator.NotifyKeyChanged(key);
                         return newValue;
                     }
@@ -88,6 +92,7 @@ using System.Collections.Concurrent;
                         : GetActiveEntry(key)?.ExpiresAtUtc; // preserve existing TTL
 
                     _entries[key] = new StoreEntry(value, expiresAtUtc);
+                    BumpKeyVersion(key);
                 }
 
                 _blockingCoordinator.NotifyKeyChanged(key);
@@ -102,7 +107,10 @@ using System.Collections.Concurrent;
                 {
                     bool removed = _entries.TryRemove(key, out _);
                     if (removed)
+                    {
+                        BumpKeyVersion(key);
                         _blockingCoordinator.NotifyKeyChanged(key);
+                    }
                     return removed;
                 }
             }
@@ -120,10 +128,14 @@ using System.Collections.Concurrent;
 
                     _entries[key] = new StoreEntry(entry.Value,
                         DateTimeOffset.UtcNow.Add(ttl));
+                    BumpKeyVersion(key);
                     _blockingCoordinator.NotifyKeyChanged(key);
                     return true;
                 }
             }
+
+            public long GetKeyVersion(string key) =>
+                _keyVersions.TryGetValue(key, out long version) ? version : 0;
 
             // ----------------------------------------------------------------
             // Blocking pop (stays here — needs store-level locking)
@@ -170,6 +182,11 @@ using System.Collections.Concurrent;
             public void NotifyKeyChanged(string key)
             {
                 _blockingCoordinator.NotifyKeyChanged(key);
+            }
+
+            private void BumpKeyVersion(string key)
+            {
+                _keyVersions.AddOrUpdate(key, 1, (_, current) => current + 1);
             }
 
             // ----------------------------------------------------------------

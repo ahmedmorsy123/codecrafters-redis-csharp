@@ -15,6 +15,12 @@ namespace codecrafters_redis.src.Commands
                 return RespEncoder.EncodeError("ERR EXEC without MULTI");
             }
 
+            if (session.Watcher.IsAnyWatchedKeyModified())
+            {
+                session.ResetTransaction();
+                return RespEncoder.EncodeNullArray();
+            }
+
             var queued = session.QueuedCommands.ToArray();
             session.ResetTransaction();
 
