@@ -26,7 +26,7 @@ namespace codecrafters_redis.src.Replication
             await master.ConnectAsync(ServerInfo.ReplicaOfHost, ServerInfo.ReplicaOfPort.Value, cancellationToken);
             await master.SendAndReceiveAsync(["PING"], cancellationToken);
             
-            await master.SendAsync(
+            await master.SendAndReceiveAsync(
                 ["REPLCONF", "listening-port", ServerInfo.Port.ToString()],
                 cancellationToken);
 
