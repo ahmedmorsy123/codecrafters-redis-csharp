@@ -35,6 +35,10 @@ public sealed class ClientConnectionHandler
         }
         finally
         {
+            if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
+            {
+                ServerInfo.Replicas.Unregister(client);
+            }
             try { client.Shutdown(SocketShutdown.Both); } catch { /* ignore */ }
             client.Dispose();
         }
