@@ -7,7 +7,7 @@ namespace codecrafters_redis.src.Replication
         private static readonly Server.CommandDispatcher _dispatcher =
             new(Server.CommandHandlerRegistry.BuildFromAssembly(System.Reflection.Assembly.GetExecutingAssembly()));
 
-        private static readonly Client.ClientSession _session = new();
+        private static readonly Client.ClientSession _session = new() { IsMasterConnection = true };
 
         public static Task RunAsync(CancellationToken cancellationToken = default)
         {
@@ -17,6 +17,9 @@ namespace codecrafters_redis.src.Replication
                 {
                     await using var master = new MasterClient();
                     await SendHandShake(master, cancellationToken);
+                    
+                    _session.ClientSocket = master.Socket;
+                    
                     await PumpReplicationStreamAsync(master, cancellationToken);
                 }
                 catch (Exception ex)

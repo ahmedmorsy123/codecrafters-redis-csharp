@@ -9,6 +9,8 @@ namespace codecrafters_redis.src.Replication
     {
         private Socket? _socket;
 
+        public Socket? Socket => _socket;
+
         private readonly List<byte> _rxBuffer = new();
 
         public bool Connected => _socket is not null && _socket.Connected;

@@ -13,9 +13,9 @@ namespace codecrafters_redis.src.Commands
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
-            if (args[0] == "GETACK")
+            if (args.Length > 0 && args[0].Equals("GETACK", StringComparison.OrdinalIgnoreCase))
             {
-                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "REPLCONF", "ACK", "0" }));
+                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "REPLCONF", "ACK", ServerInfo.MasterReplOffset.ToString() }));
                 return;
             }
 

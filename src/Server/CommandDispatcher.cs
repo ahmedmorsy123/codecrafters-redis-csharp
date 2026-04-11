@@ -45,9 +45,14 @@ public sealed class CommandDispatcher
             return;
         }
 
-        // Replicas should apply propagated write commands silently (no client response).
-        // The master connection is handled by ReplicaBootstrapper/MasterClient.
-        bool suppressResponse = ServerInfo.IsReplica && handler.IsWrite;
+        // Replicas should apply propagated commands silently (no client response).
+        // Except for REPLCONF GETACK on the master connection.
+        bool isReplconfGetAck = commandName.Equals("REPLCONF", StringComparison.OrdinalIgnoreCase) && 
+                                args.Length > 0 && 
+                                args[0].Equals("GETACK", StringComparison.OrdinalIgnoreCase);
+
+        bool suppressResponse = session.IsMasterConnection && !isReplconfGetAck;
+
         IDisposable? capture = null;
         if (suppressResponse)
         {

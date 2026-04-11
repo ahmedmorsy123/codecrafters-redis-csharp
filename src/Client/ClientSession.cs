@@ -8,6 +8,8 @@ namespace codecrafters_redis.src.Client
     {
         public Socket? ClientSocket { get; internal set; }
 
+        public bool IsMasterConnection { get; set; }
+
         private readonly Stack<StringBuilder?> _captureStack = new();
 
         public bool InTransaction { get; set; }
