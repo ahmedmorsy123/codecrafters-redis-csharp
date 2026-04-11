@@ -15,7 +15,9 @@ namespace codecrafters_redis.src.Commands
             // args[0] is the section name
 
             string infoLine = ServerInfo.GetInfoLine("role");
-            return Task.FromResult(RespEncoder.EncodeBulkString(infoLine));
+            string masterReplId = ServerInfo.GetInfoLine("master_replid");
+            string masterReplOffset = ServerInfo.GetInfoLine("master_repl_offset");
+            return Task.FromResult(RespEncoder.EncodeBulkString(infoLine + "\n" + masterReplId + "\n" + masterReplOffset));
         }
     }
 }
