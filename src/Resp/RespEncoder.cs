@@ -92,12 +92,18 @@ namespace codecrafters_redis.src.Resp
             return response.ToString();
         }
 
-        public static string EncodeRDBFile(byte[] rdbData)
+        public static byte[] EncodeRDBFile(byte[] rdbData)
         {
-            StringBuilder sb = new StringBuilder();
-            sb.Append("$").Append(rdbData.Length).Append("\r\n");
-            sb.Append(Encoding.UTF8.GetString(rdbData));
-            return sb.ToString();
+            // RESP Bulk String: $<len>\r\n<payload>\r\n
+            byte[] header = Encoding.ASCII.GetBytes($"${rdbData.Length}\r\n");
+            byte[] trailer = new byte[] { (byte)'\r', (byte)'\n' };
+
+            byte[] result = new byte[header.Length + rdbData.Length + trailer.Length];
+            Buffer.BlockCopy(header, 0, result, 0, header.Length);
+            Buffer.BlockCopy(rdbData, 0, result, header.Length, rdbData.Length);
+            Buffer.BlockCopy(trailer, 0, result, header.Length + rdbData.Length, trailer.Length);
+
+            return result;
         }
     }
 }

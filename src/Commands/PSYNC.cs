@@ -1,6 +1,7 @@
 ﻿using codecrafters_redis.src.Client;
 using codecrafters_redis.src.Resp;
 using System.Text;
+using System;
 
 namespace codecrafters_redis.src.Commands
 {
@@ -13,9 +14,11 @@ namespace codecrafters_redis.src.Commands
             string fullResync = RespEncoder.EncodeSimpleString("FULLRESYNC " + ServerInfo.ReplId + " 0");
             await session.SendStringAsync(fullResync);
 
-            var rdbBytes = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==";
-            string rdb = RespEncoder.EncodeRDBFile(Encoding.ASCII.GetBytes(rdbBytes));
-            await session.SendBytesAsync(Encoding.ASCII.GetBytes(rdb));
+            var rdbBase64 = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==";
+
+            // Decode Base64 -> raw RDB bytes
+            byte[] rdbRawBytes = Convert.FromBase64String(rdbBase64);
+            await session.SendBytesAsync(RespEncoder.EncodeRDBFile(rdbRawBytes));
             return;
         }
     }
