@@ -1,10 +1,14 @@
+using codecrafters_redis.src;
+using codecrafters_redis.src.Server;
 using System.Net;
 using System.Reflection;
-using codecrafters_redis.src.Server;
 
 int port = 6379;
 if (args.Length >= 2 && args[0] == "--port" && int.TryParse(args[1], out var parsed))
     port = parsed;
+
+if (port != 6379)
+    ServerInfo.role = "replica";
 
 var handlers = CommandHandlerRegistry.BuildFromAssembly(Assembly.GetExecutingAssembly());
 var dispatcher = new CommandDispatcher(handlers);
