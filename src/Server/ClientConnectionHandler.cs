@@ -16,7 +16,7 @@ public sealed class ClientConnectionHandler
     public async Task HandleAsync(Socket client)
     {
         var buffer = new byte[1024];
-        var session = new ClientSession();
+        var session = new ClientSession { ClientSocket = client };
 
         try
         {
@@ -32,8 +32,11 @@ public sealed class ClientConnectionHandler
                 string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                 string responseText = await _dispatcher.DispatchAsync(message, session);
 
-                byte[] response = Encoding.UTF8.GetBytes(responseText);
-                await client.SendAsync(response, SocketFlags.None);
+                if (!string.IsNullOrEmpty(responseText))
+                {
+                    byte[] response = Encoding.UTF8.GetBytes(responseText);
+                    await client.SendAsync(response, SocketFlags.None);
+                }
             }
         }
         finally

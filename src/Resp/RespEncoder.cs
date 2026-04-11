@@ -91,5 +91,13 @@ namespace codecrafters_redis.src.Resp
             }
             return response.ToString();
         }
+
+        public static string EncodeRDBFile(byte[] rdbData)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("$").Append(rdbData.Length).Append("\r\n");
+            sb.Append(Encoding.UTF8.GetString(rdbData));
+            return sb.ToString();
+        }
     }
 }
