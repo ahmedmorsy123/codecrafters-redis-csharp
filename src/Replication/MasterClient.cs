@@ -9,6 +9,8 @@ namespace codecrafters_redis.src.Replication
     {
         private Socket? _socket;
 
+        private readonly List<byte> _rxBuffer = new();
+
         public bool Connected => _socket is not null && _socket.Connected;
 
         public async Task ConnectAsync(string host, int port, CancellationToken cancellationToken = default)
@@ -52,59 +54,125 @@ namespace codecrafters_redis.src.Replication
             return Encoding.UTF8.GetString(buffer, 0, bytesRead);
         }
 
-    public async Task<byte[]> ReadBulkBytesAsync(CancellationToken cancellationToken = default)
-    {
-        if (_socket is null)
-            throw new InvalidOperationException("Not connected.");
-
-        // Read "$<len>\r\n"
-        var header = new List<byte>();
-        var one = new byte[1];
-        while (true)
+        public Task<string> ReadSimpleStringLineAsync(CancellationToken cancellationToken = default)
         {
-            int n = await _socket.ReceiveAsync(one, SocketFlags.None, cancellationToken);
-            if (n == 0)
-                throw new SocketException((int)SocketError.ConnectionReset);
-
-            header.Add(one[0]);
-            int cnt = header.Count;
-            if (cnt >= 2 && header[cnt - 2] == (byte)'\r' && header[cnt - 1] == (byte)'\n')
-                break;
+            return ReadLineAsync(cancellationToken);
         }
 
-        string headerText = Encoding.ASCII.GetString(header.ToArray());
-        if (headerText.Length < 4 || headerText[0] != '$')
-            return Array.Empty<byte>();
-
-        if (!int.TryParse(headerText.AsSpan(1, headerText.Length - 3), out int len) || len <= 0)
+        public async Task<byte[]> ReadBulkBytesAsync(CancellationToken cancellationToken = default)
         {
-            // Consume trailing CRLF for empty bulk
-            await ConsumeExactAsync(2, cancellationToken);
-            return Array.Empty<byte>();
+            if (_socket is null)
+                throw new InvalidOperationException("Not connected.");
+
+            string headerText = await ReadLineAsync(cancellationToken);
+            if (headerText.Length < 2 || headerText[0] != '$')
+                return Array.Empty<byte>();
+
+            if (!int.TryParse(headerText.AsSpan(1), out int len))
+            {
+                return Array.Empty<byte>();
+            }
+
+            if (len < 0)
+            {
+                // Null bulk string.
+                return Array.Empty<byte>();
+            }
+
+            if (len == 0)
+            {
+                // Empty bulk string.
+                return Array.Empty<byte>();
+            }
+
+            byte[] payload = await ReadExactAsync(len, cancellationToken);
+            _ = await ReadExactAsync(2, cancellationToken); // trailing CRLF
+            return payload;
         }
 
-        byte[] payload = await ConsumeExactAsync(len, cancellationToken);
-        await ConsumeExactAsync(2, cancellationToken); // trailing CRLF
-        return payload;
-    }
-
-    private async Task<byte[]> ConsumeExactAsync(int len, CancellationToken cancellationToken)
-    {
-        if (_socket is null)
-            throw new InvalidOperationException("Not connected.");
-
-        var buf = new byte[len];
-        int offset = 0;
-        while (offset < len)
+        public async Task<IReadOnlyList<string>> ReadArrayAsync(CancellationToken cancellationToken = default)
         {
-            int n = await _socket.ReceiveAsync(buf.AsMemory(offset, len - offset), SocketFlags.None, cancellationToken);
-            if (n == 0)
-                throw new SocketException((int)SocketError.ConnectionReset);
-            offset += n;
+            string arrayHeader = await ReadLineAsync(cancellationToken); // *<count>
+            if (arrayHeader.Length < 2 || arrayHeader[0] != '*')
+                throw new InvalidOperationException("Expected RESP array.");
+
+            if (!int.TryParse(arrayHeader.AsSpan(1), out int count) || count < 0)
+                throw new InvalidOperationException("Invalid RESP array length.");
+
+            var result = new List<string>(count);
+            for (int i = 0; i < count; i++)
+            {
+                string bulkHeader = await ReadLineAsync(cancellationToken); // $<len>
+                if (bulkHeader.Length < 2 || bulkHeader[0] != '$')
+                    throw new InvalidOperationException("Expected bulk string in array.");
+
+                if (!int.TryParse(bulkHeader.AsSpan(1), out int bulkLen))
+                    throw new InvalidOperationException("Invalid bulk length.");
+
+                if (bulkLen < 0)
+                {
+                    result.Add(string.Empty);
+                    continue;
+                }
+
+                byte[] payload = await ReadExactAsync(bulkLen, cancellationToken);
+                _ = await ReadExactAsync(2, cancellationToken); // trailing CRLF
+                result.Add(Encoding.UTF8.GetString(payload));
+            }
+
+            return result;
         }
 
-        return buf;
-    }
+        private async Task EnsureBufferedAsync(int minBytes, CancellationToken cancellationToken)
+        {
+            if (_socket is null)
+                throw new InvalidOperationException("Not connected.");
+
+            while (_rxBuffer.Count < minBytes)
+            {
+                var buf = new byte[4096];
+                int n = await _socket.ReceiveAsync(buf, SocketFlags.None, cancellationToken);
+                if (n == 0)
+                    throw new SocketException((int)SocketError.ConnectionReset);
+                _rxBuffer.AddRange(buf.AsSpan(0, n).ToArray());
+            }
+        }
+
+        private async Task<string> ReadLineAsync(CancellationToken cancellationToken)
+        {
+            if (_socket is null)
+                throw new InvalidOperationException("Not connected.");
+
+            while (true)
+            {
+                for (int i = 0; i + 1 < _rxBuffer.Count; i++)
+                {
+                    if (_rxBuffer[i] == (byte)'\r' && _rxBuffer[i + 1] == (byte)'\n')
+                    {
+                        string line = Encoding.ASCII.GetString(_rxBuffer.GetRange(0, i).ToArray());
+                        _rxBuffer.RemoveRange(0, i + 2);
+                        return line;
+                    }
+                }
+
+                var buf = new byte[4096];
+                int n = await _socket.ReceiveAsync(buf, SocketFlags.None, cancellationToken);
+                if (n == 0)
+                    throw new SocketException((int)SocketError.ConnectionReset);
+                _rxBuffer.AddRange(buf.AsSpan(0, n).ToArray());
+            }
+        }
+
+        private async Task<byte[]> ReadExactAsync(int len, CancellationToken cancellationToken)
+        {
+            if (_socket is null)
+                throw new InvalidOperationException("Not connected.");
+
+            await EnsureBufferedAsync(len, cancellationToken);
+            byte[] result = _rxBuffer.GetRange(0, len).ToArray();
+            _rxBuffer.RemoveRange(0, len);
+            return result;
+        }
 
         public async Task<string> SendAndReceiveAsync(IReadOnlyList<string> commandWithArgs, CancellationToken cancellationToken = default)
         {

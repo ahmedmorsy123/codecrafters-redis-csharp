@@ -1,4 +1,3 @@
-// src/Replication/ReplicaBootstrapper.cs
 using System;
 
 namespace codecrafters_redis.src.Replication
@@ -50,13 +49,19 @@ namespace codecrafters_redis.src.Replication
             // 2) $<rdbLen>\r\n<bytes>\r\n
             // Then an endless stream of RESP arrays (propagated commands).
 
-            _ = await master.ReceiveAsync(cancellationToken); // FULLRESYNC line (ignored for now)
+            _ = await master.ReadSimpleStringLineAsync(cancellationToken); // +FULLRESYNC ...
             await master.ReadBulkBytesAsync(cancellationToken); // RDB payload (ignored for now)
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                string frame = await master.ReceiveAsync(cancellationToken);
-                await ApplyFramesAsync(frame);
+                var cmd = await master.ReadArrayAsync(cancellationToken);
+                if (cmd.Count == 0)
+                    continue;
+
+
+                // Re-encode and dispatch through the same pipeline.
+                string resp = codecrafters_redis.src.Resp.RespEncoder.EncodeArray(cmd);
+                await ApplyFramesAsync(resp);
             }
         }
 
