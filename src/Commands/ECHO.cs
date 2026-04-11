@@ -9,6 +9,7 @@ namespace codecrafters_redis.src.Commands
     public class ECHO : ICommand
     {
         public string Name => "ECHO";
+        public bool IsWrite => false;
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {

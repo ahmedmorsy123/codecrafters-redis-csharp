@@ -8,6 +8,7 @@ namespace codecrafters_redis.src.Commands
     public class XREAD : ICommand
     {
         public string Name => "XREAD";
+        public bool IsWrite => false;
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {

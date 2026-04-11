@@ -11,6 +11,7 @@ namespace codecrafters_redis.src.Commands
     public class LPush : ICommand
     {
         public string Name => "LPUSH";
+        public bool IsWrite => true;
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length < 2)
@@ -29,8 +30,6 @@ namespace codecrafters_redis.src.Commands
                 int lengthAfterPush = list.Count;
                 StoreProvider.Instance.SetEntry(key, list);
                 StoreProvider.Instance.NotifyBlpopWaiters(key); // ← unblocks BLPOP clients
-                if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
-                    await ServerInfo.Replicas.PropagateAsync(new[] { "LPUSH" }.Concat(args).ToArray());
                 await session.SendStringAsync(RespEncoder.EncodeInteger(lengthAfterPush));
             }
             catch (InvalidOperationException ex)

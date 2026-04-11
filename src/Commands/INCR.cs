@@ -11,6 +11,7 @@ namespace codecrafters_redis.src.Commands
     public class INCR : ICommand
     {
         public string Name => "INCR";
+        public bool IsWrite => true;
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
@@ -35,10 +36,6 @@ namespace codecrafters_redis.src.Commands
                 await session.SendStringAsync(RespEncoder.EncodeError("ERR value is not an integer or out of range"));
                 return;
             }
-
-            if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
-                await ServerInfo.Replicas.PropagateAsync(new[] { "INCR", key });
-
             await session.SendStringAsync(RespEncoder.EncodeInteger(intVal));
         }
     }

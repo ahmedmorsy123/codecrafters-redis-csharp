@@ -8,6 +8,7 @@ namespace codecrafters_redis.src.Commands
     public interface ICommand
     {
         public string Name { get; }
+        public bool IsWrite { get; }
         public Task ExecuteAsync(string[] args, ClientSession session);
     }
 }

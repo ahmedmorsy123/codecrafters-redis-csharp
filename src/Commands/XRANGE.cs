@@ -10,6 +10,7 @@ namespace codecrafters_redis.src.Commands
     public class XRANGE : ICommand
     {
         public string Name => "XRANGE";
+        public bool IsWrite => false;
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {

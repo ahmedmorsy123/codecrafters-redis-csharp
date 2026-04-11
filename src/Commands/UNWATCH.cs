@@ -9,6 +9,7 @@ namespace codecrafters_redis.src.Commands
     public class UNWATCH : ICommand
     {
         public string Name => "UNWATCH";
+        public bool IsWrite => false;
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {

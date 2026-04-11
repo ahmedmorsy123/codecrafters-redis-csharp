@@ -9,6 +9,7 @@ namespace codecrafters_redis.src.Commands
     {
 
         public string Name => "PING";
+        public bool IsWrite => false;
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length == 0)

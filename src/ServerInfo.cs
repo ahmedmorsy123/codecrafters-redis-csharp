@@ -6,6 +6,7 @@
 
         public static int Port { get; set; } = 6379;
         public static string Role { get; set; } = "master";
+        public static bool IsReplica => !Role.Equals("master", StringComparison.OrdinalIgnoreCase);
         public static string ReplId { get; set; } = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
         public static string? ReplicaOfHost { get; set; }
         public static int? ReplicaOfPort { get; set; }

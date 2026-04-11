@@ -27,6 +27,7 @@ public sealed class CommandDispatcher
 
         string commandName = commands[0];
         string[] args = commands.Skip(1).ToArray();
+        var originalCommandWithArgs = commands;
 
         if (!_handlers.TryGetValue(commandName, out var handler))
         {
@@ -44,6 +45,27 @@ public sealed class CommandDispatcher
             return;
         }
 
-        await handler.ExecuteAsync(args, session);
+        // Replicas should apply propagated write commands silently (no client response).
+        // The master connection is handled by ReplicaBootstrapper/MasterClient.
+        bool suppressResponse = ServerInfo.IsReplica && handler.IsWrite;
+        IDisposable? capture = null;
+        if (suppressResponse)
+        {
+            capture = session.CaptureWrites(out _);
+        }
+
+        try
+        {
+            await handler.ExecuteAsync(args, session);
+        }
+        finally
+        {
+            capture?.Dispose();
+        }
+
+        if (!ServerInfo.IsReplica && handler.IsWrite)
+        {
+            await ServerInfo.Replicas.PropagateAsync(originalCommandWithArgs);
+        }
     }
 }

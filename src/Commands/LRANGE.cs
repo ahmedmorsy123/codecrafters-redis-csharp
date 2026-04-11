@@ -11,6 +11,7 @@ namespace codecrafters_redis.src.Commands
     public class LRANGE : ICommand
     {
         public string Name => "LRANGE";
+        public bool IsWrite => false;
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length != 3)

@@ -11,6 +11,7 @@ namespace codecrafters_redis.src.Commands
     public class XADD : ICommand
     {
         public string Name => "XADD";
+        public bool IsWrite => true;
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
@@ -62,10 +63,6 @@ namespace codecrafters_redis.src.Commands
 
             StoreProvider.Instance.SetEntry(streamKey, stream);
             StoreProvider.Instance.NotifyKeyChanged(streamKey);
-
-            if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
-                await ServerInfo.Replicas.PropagateAsync(new[] { "XADD" }.Concat(args).ToArray());
-
             await session.SendStringAsync(RespEncoder.EncodeBulkString(id.ToString()));
 
         }

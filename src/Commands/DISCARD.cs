@@ -9,6 +9,7 @@ namespace codecrafters_redis.src.Commands
     public class DISCARD : ICommand
     {
         public string Name => "DISCARD";
+        public bool IsWrite => false;
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {

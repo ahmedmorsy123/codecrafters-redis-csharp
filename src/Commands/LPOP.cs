@@ -11,6 +11,7 @@ namespace codecrafters_redis.src.Commands
     public class LPOP : ICommand
     {
         public string Name => "LPOP";
+        public bool IsWrite => true;
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
             if (args.Length < 1 || args.Length > 2)
@@ -46,9 +47,6 @@ namespace codecrafters_redis.src.Commands
 
                 // Persist mutation so WATCH sees the change via key version bump.
                 StoreProvider.Instance.SetEntry(key, list);
-
-                if (ServerInfo.Role.Equals("master", StringComparison.OrdinalIgnoreCase))
-                    await ServerInfo.Replicas.PropagateAsync(new[] { "LPOP" }.Concat(args).ToArray());
 
                 // LPOP key      → single bulk string
                 // LPOP key N    → array
