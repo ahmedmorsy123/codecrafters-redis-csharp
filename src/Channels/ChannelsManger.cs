@@ -16,7 +16,7 @@ namespace codecrafters_redis.src.Channels
             {
                 if (!channels.TryGetValue(name, out var channel))
                 {
-                    channel = new Channel();
+                    channel = new Channel(name);
                     channels[name] = channel;
                 }
                 return channel;
@@ -37,6 +37,7 @@ namespace codecrafters_redis.src.Channels
     {
         private readonly HashSet<ClientSession> subscribers = new HashSet<ClientSession>();
 
+        public string Name { get; set; }
         public int SubscriberCount
         {
             get
@@ -47,12 +48,17 @@ namespace codecrafters_redis.src.Channels
                 }
             }
         }
+
+        public Channel(string name)
+        {
+            Name = name;
+        }
         public int Publish(string message)
         {
             var subscribersCopy = GetSubscribers();
             foreach (var subscriber in subscribersCopy)
             {
-                subscriber.SendStringAsync(RespEncoder.EncodeArray(new object[] { "message", message }));
+                subscriber.SendStringAsync(RespEncoder.EncodeArray(new object[] { "message", Name, message }));
             }
             return SubscriberCount;
         
