@@ -25,22 +25,10 @@ namespace codecrafters_redis.src.Commands
                 args[0] = args[0].Substring(1, args[0].Length - 2);
             }
 
-            // For simplicity, we will only support the '*' wildcard at the end of the pattern.
-            if (args.Length > 1)
-            {
-                await session.SendStringAsync("-ERR only one pattern is supported\r\n");
-                return;
-            }
-
-            if (args.Length > 2)
-            {
-                await session.SendStringAsync("-ERR too many arguments\r\n");
-                return;
-            }
-
+            
             var pattern = args[0];
             var keys = StoreProvider.Instance.GetAllKeys(pattern);
-
+            Console.WriteLine($"KEYS pattern: {pattern}, found keys: {string.Join(", ", keys)}");
             await session.SendStringAsync(RespEncoder.EncodeArray(keys.ToList()));
         }
     }
