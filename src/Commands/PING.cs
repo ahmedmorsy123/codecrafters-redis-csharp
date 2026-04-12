@@ -13,13 +13,14 @@ namespace codecrafters_redis.src.Commands
         public bool IsWrite => false;
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
+            Console.WriteLine($"IsSubscribeMode: {session.IsSubscribeMode}");
             if (session.IsSubscribeMode)
             {
-                await session.SendStringAsync(RespEncoder.EncodeSimpleString("PONG"));
+                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "PONG" , ""}));
             }
             else
             {
-                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "PONG" , ""}));
+                await session.SendStringAsync(RespEncoder.EncodeSimpleString("PONG"));
             }
         }
     }
