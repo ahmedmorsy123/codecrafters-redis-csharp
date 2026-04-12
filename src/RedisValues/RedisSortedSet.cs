@@ -76,7 +76,6 @@ namespace codecrafters_redis.src.RedisValues
 
         public IReadOnlyList<string> Range(int start, int stop)
         {
-            // start and stop are inclusive, and can be negative to indicate offset from the end
             if (start < 0) start = Count + start;
             if (stop < 0) stop = Count + stop;
             
