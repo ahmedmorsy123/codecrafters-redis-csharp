@@ -46,7 +46,7 @@ namespace codecrafters_redis.src.Resp
         }
 
 
-        public static string EncodeArray(IReadOnlyList<object> elements)
+        public static string EncodeArray(IReadOnlyList<object?> elements)
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("*" + elements.Count + "\r\n");
