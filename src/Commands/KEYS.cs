@@ -28,7 +28,6 @@ namespace codecrafters_redis.src.Commands
             
             var pattern = args[0];
             var keys = StoreProvider.Instance.GetAllKeys(pattern);
-            Console.WriteLine($"KEYS pattern: {pattern}, found keys: {string.Join(", ", keys)}");
             await session.SendStringAsync(RespEncoder.EncodeArray(keys.ToList()));
         }
     }

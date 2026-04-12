@@ -142,6 +142,24 @@ namespace codecrafters_redis.src.Storage
                 return _entries.Keys.Where(k => k.StartsWith(pattern.TrimEnd('*')));
             }
 
+            public IReadOnlyDictionary<string, StoreEntry> SnapshotEntries()
+            {
+                lock (_syncRoot)
+                {
+                    DateTimeOffset now = DateTimeOffset.UtcNow;
+
+                    foreach (string key in _entries.Keys.ToList())
+                    {
+                        if (_entries.TryGetValue(key, out StoreEntry? entry) && entry.IsExpired(now))
+                        {
+                            _entries.TryRemove(key, out _);
+                        }
+                    }
+
+                    return _entries.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+                }
+            }
+
 
             public long GetKeyVersion(string key) =>
                     _keyVersions.TryGetValue(key, out long version) ? version : 0;
