@@ -11,12 +11,13 @@ namespace codecrafters_redis.src
 
         public static void Set(string key, string value)
         {
+            Console.Error.WriteLine($"Config set: {key} = {value}");
             _configs.Add(key, value);
         }
 
         public static bool TryGet(string key, out string? value)
         {
-            
+            Console.Error.WriteLine($"Config get: {key}");
             return _configs.TryGetValue(key, out value);
         }
     }
