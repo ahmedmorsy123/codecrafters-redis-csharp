@@ -36,7 +36,7 @@ public sealed class CommandDispatcher
             return;
         }
 
-        if (session.SubscribeMode 
+        if (session.IsSubscribeMode 
             && !commandName.Equals("SUBSCRIBE", StringComparison.OrdinalIgnoreCase)
             && !commandName.Equals("UNSUBSCRIBE", StringComparison.OrdinalIgnoreCase) 
             && !commandName.Equals("PSUBSCRIBE", StringComparison.OrdinalIgnoreCase) 

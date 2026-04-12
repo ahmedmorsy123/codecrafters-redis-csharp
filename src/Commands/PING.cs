@@ -1,4 +1,5 @@
 ﻿using codecrafters_redis.src.Client;
+using codecrafters_redis.src.Resp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,13 +13,13 @@ namespace codecrafters_redis.src.Commands
         public bool IsWrite => false;
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
-            if (args.Length == 0)
+            if (session.IsSubscribeMode)
             {
-                await session.SendStringAsync("+PONG\r\n");
+                await session.SendStringAsync(RespEncoder.EncodeSimpleString("PONG"));
             }
             else
             {
-                await session.SendStringAsync("+" + args[0] + "\r\n");
+                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "PONG" , ""}));
             }
         }
     }

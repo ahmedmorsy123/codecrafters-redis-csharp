@@ -11,7 +11,7 @@ namespace codecrafters_redis.src.Client
         public bool IsMasterConnection { get; set; }
 
         public int ChannelSubscriptionCount { get; set; } = 0;
-        public bool SubscribeMode  => ChannelSubscriptionCount > 0;
+        public bool IsSubscribeMode  => ChannelSubscriptionCount > 0;
         public bool InTransaction { get; set; }
         public ClientWatcher Watcher { get; } = new();
 
