@@ -63,14 +63,16 @@ namespace codecrafters_redis.src.Channels
                 return session.ChannelSubscriptionCount;
             }
         }
-        public void Unsubscribe(ClientSession session)
+        public int Unsubscribe(ClientSession session)
         {
             lock (subscribers)
             {
                 subscribers.Remove(session);
                 session.ChannelSubscriptionCount--;
+                return session.ChannelSubscriptionCount;
             }
         }
+ 
         public IEnumerable<ClientSession> GetSubscribers()
         {
             lock (subscribers)

@@ -16,7 +16,7 @@ namespace codecrafters_redis.src.Commands
             Console.WriteLine($"IsSubscribeMode: {session.IsSubscribeMode}");
             if (session.IsSubscribeMode)
             {
-                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "PONG" , ""}));
+                await session.SendStringAsync(RespEncoder.EncodeArray(new string[] { "pong" , ""}));
             }
             else
             {
