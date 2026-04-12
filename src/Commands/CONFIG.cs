@@ -31,7 +31,6 @@ namespace codecrafters_redis.src.Commands
                     {
                         await session.SendStringAsync(RespEncoder.EncodeArray(Array.Empty<string>()));
                     }
-                    await session.SendStringAsync($"*2\r\n$3\r\nmax\r\n$2\r\n10\r\n");
                     break;
                 default:
                     await session.SendStringAsync($"-ERR Unsupported CONFIG subcommand '{args[0]}'\r\n");
