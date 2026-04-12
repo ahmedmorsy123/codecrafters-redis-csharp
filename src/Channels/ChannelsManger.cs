@@ -1,4 +1,5 @@
 ﻿using codecrafters_redis.src.Client;
+using codecrafters_redis.src.Resp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -46,13 +47,16 @@ namespace codecrafters_redis.src.Channels
                 }
             }
         }
-        public void Publish(string message)
+        public int Publish(string message)
         {
             var subscribersCopy = GetSubscribers();
             foreach (var subscriber in subscribersCopy)
             {
-                subscriber.SendStringAsync(message);
+                subscriber.SendStringAsync(RespEncoder.EncodeArray(new object[] { "message", message }));
             }
+            return SubscriberCount;
+        
+            
         }
         public int Subscribe(ClientSession session)
         {

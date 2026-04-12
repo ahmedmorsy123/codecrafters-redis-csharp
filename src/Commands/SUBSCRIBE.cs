@@ -22,8 +22,8 @@ namespace codecrafters_redis.src.Commands
             }
 
             string channel = args[0];
-            int subscriberCount = ChannelsManger.GetOrCreateChannel(channel).Subscribe(session);
-            await session.SendStringAsync(RespEncoder.EncodeArray(new object[] { "subscribe", channel, subscriberCount }));
+            int channelSubscriptionCount = ChannelsManger.GetOrCreateChannel(channel).Subscribe(session);
+            await session.SendStringAsync(RespEncoder.EncodeArray(new object[] { "subscribe", channel, channelSubscriptionCount }));
         }
     }
 }
