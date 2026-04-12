@@ -45,13 +45,27 @@ namespace codecrafters_redis.src.Resp
             return ":" + number + "\r\n";
         }
 
-        public static string EncodeArray(IReadOnlyList<string> elements)
+
+        public static string EncodeArray(IReadOnlyList<object> elements)
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("*" + elements.Count + "\r\n");
             foreach (var element in elements)
             {
-                sb.Append(EncodeBulkString(element));
+                switch (element)
+                {
+                    case string s:
+                        sb.Append(EncodeBulkString(s));
+                        break;
+                    case int i:
+                        sb.Append(EncodeInteger(i));
+                        break;
+                    case null:
+                        sb.Append(EncodeNull());
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unsupported type for RESP encoding: {element.GetType()}");
+                }
             }
             return sb.ToString();
         }

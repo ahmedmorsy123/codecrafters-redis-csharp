@@ -41,8 +41,6 @@ namespace codecrafters_redis.src.Client
                 return ValueTask.FromResult(text.Length);
             }
 
-            Console.WriteLine($"text sent is {text}");
-
             return SendBytesAsync(Encoding.UTF8.GetBytes(text), cancellationToken);
         }
 
