@@ -3,7 +3,6 @@
     public static class ServerInfo
     {
         public static Replication.ReplicaConnectionManager Replicas { get; } = new();
-
         public static int Port { get; set; } = 6379;
         public static string Role { get; set; } = "master";
         public static bool IsReplica => !Role.Equals("master", StringComparison.OrdinalIgnoreCase);

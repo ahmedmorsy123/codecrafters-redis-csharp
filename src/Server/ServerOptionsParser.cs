@@ -39,6 +39,26 @@ namespace codecrafters_redis.src.Server
                     i++;
                     continue;
                 }
+
+                if (string.Equals(arg,"--dir", StringComparison.Ordinal))
+                {
+                    if (i + 1 >= args.Length)
+                        throw new ArgumentException("Missing value for --dir");
+
+                    ServerConfigration.Set("--dir", args[i + 1]);
+                    i++;
+                    continue;
+                }
+
+                if (string.Equals(arg, "--dbfilename", StringComparison.Ordinal))
+                {
+                    if (i + 1 >= args.Length)
+                        throw new ArgumentException("Missing value for --dbfilename");
+
+                    ServerConfigration.Set("--dbfilename", args[i + 1]);
+                    i++ ;
+                    continue;
+                }
             }
         }
     }
