@@ -27,7 +27,7 @@ namespace codecrafters_redis.src.Commands
             var coordinates = sortedSet.GetCoordinates(member);
             if (coordinates == null)
             {
-                await session.SendStringAsync(RespEncoder.EncodeArray(new object?[] {null, null, null, null}));
+                await session.SendStringAsync(RespEncoder.EncodeArray(new object?[] {null}));
             }
             else
             {
