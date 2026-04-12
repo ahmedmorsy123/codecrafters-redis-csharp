@@ -36,6 +36,19 @@ public sealed class CommandDispatcher
             return;
         }
 
+        if (session.SubscribeMode 
+            && !commandName.Equals("SUBSCRIBE", StringComparison.OrdinalIgnoreCase)
+            && !commandName.Equals("UNSUBSCRIBE", StringComparison.OrdinalIgnoreCase) 
+            && !commandName.Equals("PSUBSCRIBE", StringComparison.OrdinalIgnoreCase) 
+            && !commandName.Equals("PUNSUBSCRIBE", StringComparison.OrdinalIgnoreCase)
+            && !commandName.Equals("PING", StringComparison.OrdinalIgnoreCase)
+            && !commandName.Equals("QUIT", StringComparison.OrdinalIgnoreCase)
+            )
+        {
+            await session.SendStringAsync(RespEncoder.EncodeError($"ERR Can't execute '{commandName}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context"));
+            return;
+        }
+
         if (session.InTransaction
             && !commandName.Equals("EXEC", StringComparison.OrdinalIgnoreCase)
             && !commandName.Equals("DISCARD", StringComparison.OrdinalIgnoreCase)
