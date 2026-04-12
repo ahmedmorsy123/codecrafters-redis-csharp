@@ -59,7 +59,8 @@ namespace codecrafters_redis.src.Channels
             lock (subscribers)
             {
                 subscribers.Add(session);
-                return subscribers.Count;
+                session.ChannelSubscriptionCount++;
+                return session.ChannelSubscriptionCount;
             }
         }
         public void Unsubscribe(ClientSession session)
@@ -67,6 +68,7 @@ namespace codecrafters_redis.src.Channels
             lock (subscribers)
             {
                 subscribers.Remove(session);
+                session.ChannelSubscriptionCount--;
             }
         }
         public IEnumerable<ClientSession> GetSubscribers()

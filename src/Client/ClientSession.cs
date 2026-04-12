@@ -10,14 +10,14 @@ namespace codecrafters_redis.src.Client
 
         public bool IsMasterConnection { get; set; }
 
-        private readonly Stack<StringBuilder?> _captureStack = new();
-
+        public int ChannelSubscriptionCount { get; set; } = 0;
         public bool InTransaction { get; set; }
 
         public ClientWatcher Watcher { get; } = new();
 
         public List<(ICommand Command, string[] Args)> QueuedCommands { get; } = new();
 
+        private readonly Stack<StringBuilder?> _captureStack = new();
         public void ResetTransaction()
         {
             InTransaction = false;
