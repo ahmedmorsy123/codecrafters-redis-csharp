@@ -6,7 +6,7 @@ using System.Text;
 
 namespace codecrafters_redis.src.Channels
 {
-    public static class ChannelsManger
+    public static class ChannelsManager
     {
         private static readonly Dictionary<string, Channel> channels = new Dictionary<string, Channel>();
 
@@ -19,6 +19,15 @@ namespace codecrafters_redis.src.Channels
                     channel = new Channel(name);
                     channels[name] = channel;
                 }
+                return channel;
+            }
+        }
+
+        public static Channel? GetChannel(string name)
+        {
+            lock (channels)
+            {
+                channels.TryGetValue(name, out var channel);
                 return channel;
             }
         }
@@ -68,8 +77,8 @@ namespace codecrafters_redis.src.Channels
         {
             lock (subscribers)
             {
-                subscribers.Add(session);
-                session.ChannelSubscriptionCount++;
+                if (subscribers.Add(session)) session.ChannelSubscriptionCount++;
+
                 return session.ChannelSubscriptionCount;
             }
         }
@@ -77,8 +86,12 @@ namespace codecrafters_redis.src.Channels
         {
             lock (subscribers)
             {
-                subscribers.Remove(session);
-                session.ChannelSubscriptionCount--;
+                if (subscribers.Remove(session)) session.ChannelSubscriptionCount--;
+
+                if (subscribers.Count == 0)
+                {
+                    ChannelsManager.RemoveChannel(Name);
+                }
                 return session.ChannelSubscriptionCount;
             }
         }

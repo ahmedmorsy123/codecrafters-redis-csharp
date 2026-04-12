@@ -22,7 +22,14 @@ namespace codecrafters_redis.src.Commands
             }
 
             string channel = args[0];
-            int subscriberCount = ChannelsManger.GetOrCreateChannel(channel).Unsubscribe(session);
+            var existingChannel = ChannelsManager.GetChannel(channel);
+            if (existingChannel == null)
+            {
+                await session.SendStringAsync(RespEncoder.EncodeArray(new object[] { "unsubscribe", channel, 0 }));
+                return;
+            }
+
+            int subscriberCount = existingChannel.Unsubscribe(session);
             await session.SendStringAsync(RespEncoder.EncodeArray(new object[] { "unsubscribe", channel, subscriberCount }));
         }
     }
