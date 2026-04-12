@@ -134,8 +134,17 @@ namespace codecrafters_redis.src.Storage
                 }
             }
 
+            public IEnumerable<string> GetAllKeys(string pattern)
+            {
+                if (pattern == "*")
+                    return _entries.Keys;
+
+                return _entries.Keys.Where(k => k.StartsWith(pattern.TrimEnd('*')));
+            }
+
+
             public long GetKeyVersion(string key) =>
-                _keyVersions.TryGetValue(key, out long version) ? version : 0;
+                    _keyVersions.TryGetValue(key, out long version) ? version : 0;
 
             // ----------------------------------------------------------------
             // Blocking pop (stays here — needs store-level locking)
