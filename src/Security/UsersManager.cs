@@ -171,7 +171,7 @@ namespace codecrafters_redis.src.Security
             using var sha256 = System.Security.Cryptography.SHA256.Create();
             var bytes = Encoding.UTF8.GetBytes(password);
             var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
+            return Convert.ToHexString(hash).ToLowerInvariant();
         }
 
         private static bool VerifyPassword(string password, string passwordHash)
