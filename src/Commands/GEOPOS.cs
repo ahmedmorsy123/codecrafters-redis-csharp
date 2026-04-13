@@ -2,6 +2,7 @@
 using codecrafters_redis.src.RedisValues;
 using codecrafters_redis.src.Resp;
 using codecrafters_redis.src.Storage;
+using System.Globalization;
 
 
 namespace codecrafters_redis.src.Commands
@@ -23,17 +24,27 @@ namespace codecrafters_redis.src.Commands
             string key = args[0];
             string[] members = args.Skip(1).ToArray();
 
-            RedisSortedSet sortedSet = StoreProvider.Instance.GetOrCreate<RedisSortedSet>(key, () => new RedisSortedSet());
+            RedisSortedSet? sortedSet = StoreProvider.Instance.Get<RedisSortedSet>(key);
 
             List<object?> results = new List<object?>();
+
+            if (sortedSet == null)
+            {
+                for (int i = 0; i < members.Length; i++)
+                {
+                    results.Add(null);
+                }
+
+                await session.SendStringAsync(RespEncoder.EncodeArray(results));
+                return;
+            }
 
             foreach (var member in members)
             {
                 var coordinates = sortedSet.GetCoordinates(member);
                 if (coordinates == null)
                 {
-                    await session.SendStringAsync(RespEncoder.EncodeNullArray());
-                    return;
+                    results.Add(null);
                 }
                 else
                 {
