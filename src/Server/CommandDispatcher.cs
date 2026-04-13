@@ -20,7 +20,7 @@ public sealed class CommandDispatcher
 
         Console.Error.WriteLine($"Received: {string.Join(", ", commands)}");
 
-        if (!session.IsAuthenticated)
+        if (!session.IsAuthenticated  && !commands[0].Equals("AUTH", StringComparison.OrdinalIgnoreCase))
         {
             await session.SendStringAsync(RespEncoder.EncodeError("NOAUTH Authentication required."));
             return;

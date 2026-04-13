@@ -28,8 +28,11 @@ namespace codecrafters_redis.src.Commands
             if (!UsersManager.Authenticate(username, password))
             {
                 await session.SendStringAsync(RespEncoder.EncodeError("WRONGPASS invalid username-password pair or user is disabled."));
+                Console.WriteLine("user wasn't authenticated");
                 return;
+
             }
+                Console.WriteLine("user was authenticated");
 
             session.IsAuthenticated = true;
             session.AuthenticatedUser = username;
