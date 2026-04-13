@@ -33,6 +33,7 @@ namespace codecrafters_redis.src.Commands
                 if (coordinates == null)
                 {
                     await session.SendStringAsync(RespEncoder.EncodeNullArray());
+                    return;
                 }
                 else
                 {
