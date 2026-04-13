@@ -49,8 +49,8 @@ namespace codecrafters_redis.src.Security
                 else
                 {
                     var newPasswords = passwordsProp.values.Append(passwordHash).ToArray();
-                    user.Properties.Remove(passwordsProp);
-                    user.Properties.Add(new UserProperties("passwords", newPasswords));
+                    int passwordsIndex = user.Properties.FindIndex(p => p.property.Equals("passwords", StringComparison.OrdinalIgnoreCase));
+                    user.Properties[passwordsIndex] = new UserProperties("passwords", newPasswords);
                 }
                 NormalizeNoPassFlag(user);
             }
@@ -162,8 +162,8 @@ namespace codecrafters_redis.src.Security
                 .Where(v => !v.Equals("nopass", StringComparison.OrdinalIgnoreCase))
                 .ToArray();
 
-            user.Properties.Remove(flags);
-            user.Properties.Add(new UserProperties(flags.property, newFlags));
+            int flagsIndex = user.Properties.FindIndex(p => p.property.Equals("flags", StringComparison.OrdinalIgnoreCase));
+            user.Properties[flagsIndex] = new UserProperties(flags.property, newFlags);
         }
 
         private static string HashPassword(string password)
