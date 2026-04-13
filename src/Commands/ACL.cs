@@ -21,12 +21,21 @@ namespace codecrafters_redis.src.Commands
                 case "WHOAMI":
                     await WHOAMICommand(args.Skip(1).ToArray(), session);
                     break;
+                case "GETUSER":
+                    await GETUSERCommand(args.Skip(1).ToArray(), session);
+                    break;
                 default:
                     await session.SendStringAsync(RespEncoder.EncodeError($"UnKnown SubCommand {subCommand} for ACL"));
                     break;
             }
         }
 
+        private async Task GETUSERCommand(string[] strings, ClientSession session)
+        {
+            string user = strings[0];
+
+            await session.SendStringAsync(RespEncoder.EncodeArray(new object[] { "flags", Array.Empty<string>() }));
+        }
 
         private async Task WHOAMICommand(string[] args, ClientSession session)
         {
