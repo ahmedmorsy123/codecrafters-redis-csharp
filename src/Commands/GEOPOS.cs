@@ -33,6 +33,7 @@ namespace codecrafters_redis.src.Commands
                 if (coordinates == null)
                 {
                     results.Add(null);
+                    results.Add(null);
                 }
                 else
                 {
