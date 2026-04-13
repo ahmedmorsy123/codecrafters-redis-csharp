@@ -61,7 +61,7 @@ namespace codecrafters_redis.src.Resp
                         sb.Append(EncodeInteger(i));
                         break;
                     case null:
-                        sb.Append(EncodeNullArray());
+                        sb.Append(EncodeNull());
                         break;
                     case IReadOnlyList<object?> arr:
                         sb.Append(EncodeArray(arr));
