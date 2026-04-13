@@ -63,6 +63,9 @@ namespace codecrafters_redis.src.Resp
                     case null:
                         sb.Append(EncodeNull());
                         break;
+                    case IReadOnlyList<object?> arr:
+                        sb.Append(EncodeArray(arr));
+                        break;
                     default:
                         throw new InvalidOperationException($"Unsupported type for RESP encoding: {element.GetType()}");
                 }

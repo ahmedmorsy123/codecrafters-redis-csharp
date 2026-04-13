@@ -21,19 +21,24 @@ namespace codecrafters_redis.src.Commands
             }
 
             string key = args[0];
-            string member = args[1];
+            string[] members = args.Skip(1).ToArray();
 
             RedisSortedSet sortedSet = StoreProvider.Instance.GetOrCreate<RedisSortedSet>(key, () => new RedisSortedSet());
-            var coordinates = sortedSet.GetCoordinates(member);
-            if (coordinates == null)
-            {
-                await session.SendStringAsync(RespEncoder.EncodeArray(new object?[] {null}));
-            }
-            else
-            {
-                await session.SendStringAsync(RespEncoder.EncodeArray(new[] { coordinates.Value.longitude.ToString(), coordinates.Value.latitude.ToString() }));
-            }
 
+            List<object?> results = new List<object?>();
+
+            foreach (var member in members)
+            {
+                var coordinates = sortedSet.GetCoordinates(member);
+                if (coordinates == null)
+                {
+                    results.Add(null);
+                }
+                else
+                {
+                    results.Add(new[] { coordinates.Value.longitude.ToString(), coordinates.Value.latitude.ToString() });
+                }
+            }
         }
     }
 }
