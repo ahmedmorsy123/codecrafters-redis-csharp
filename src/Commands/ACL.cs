@@ -34,7 +34,7 @@ namespace codecrafters_redis.src.Commands
         {
             string user = strings[0];
 
-            await session.SendStringAsync(RespEncoder.EncodeArray(new object[] { "flags", Array.Empty<string>() }));
+            await session.SendStringAsync(RespEncoder.EncodeArray(new object[] { "flags", new string[] { "nopass" } }));
         }
 
         private async Task WHOAMICommand(string[] args, ClientSession session)
