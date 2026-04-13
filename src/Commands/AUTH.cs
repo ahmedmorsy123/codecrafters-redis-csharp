@@ -31,6 +31,8 @@ namespace codecrafters_redis.src.Commands
                 return;
             }
 
+            session.IsAuthenticated = true;
+            session.AuthenticatedUser = username;
             await session.SendStringAsync(RespEncoder.EncodeSimpleString("OK"));
         }
     }
