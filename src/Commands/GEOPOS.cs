@@ -39,6 +39,8 @@ namespace codecrafters_redis.src.Commands
                     results.Add(new[] { coordinates.Value.longitude.ToString(), coordinates.Value.latitude.ToString() });
                 }
             }
+
+            await session.SendStringAsync(RespEncoder.EncodeArray(results));
         }
     }
 }
