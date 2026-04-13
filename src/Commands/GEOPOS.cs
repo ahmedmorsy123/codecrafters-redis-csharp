@@ -14,7 +14,7 @@ namespace codecrafters_redis.src.Commands
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
-            if(args.Length != 2)
+            if(args.Length >= 2)
             {
                 await session.SendStringAsync("-ERR wrong number of arguments for 'GEOPOS' command\r\n");
                 return;
