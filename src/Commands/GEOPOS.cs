@@ -32,8 +32,7 @@ namespace codecrafters_redis.src.Commands
                 var coordinates = sortedSet.GetCoordinates(member);
                 if (coordinates == null)
                 {
-                    results.Add(null);
-                    results.Add(null);
+                    results.Add(new object?[] { null, null });
                 }
                 else
                 {
