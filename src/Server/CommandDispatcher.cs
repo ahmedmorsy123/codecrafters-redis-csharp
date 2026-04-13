@@ -20,6 +20,11 @@ public sealed class CommandDispatcher
 
         Console.Error.WriteLine($"Received: {string.Join(", ", commands)}");
 
+        if (!session.IsAuthenticated)
+        {
+            await session.SendStringAsync(RespEncoder.EncodeError("NOAUTH Authentication required."));
+        }
+
         if (commands.Count == 0)
         {
             await session.SendStringAsync(RespEncoder.EncodeError("empty command"));

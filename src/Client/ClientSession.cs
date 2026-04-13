@@ -13,6 +13,8 @@ namespace codecrafters_redis.src.Client
         public int ChannelSubscriptionCount { get; set; } = 0;
         public bool IsSubscribeMode  => ChannelSubscriptionCount > 0;
         public bool InTransaction { get; set; }
+        public bool IsAuthenticated { get; set; }
+        public string? AuthenticatedUser { get; set; }
         public ClientWatcher Watcher { get; } = new();
 
         public List<(ICommand Command, string[] Args)> QueuedCommands { get; } = new();

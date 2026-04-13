@@ -64,7 +64,7 @@ namespace codecrafters_redis.src.Commands
                 return;
             }
 
-            await session.SendStringAsync(RespEncoder.EncodeBulkString("default"));
+            await session.SendStringAsync(RespEncoder.EncodeBulkString(session.AuthenticatedUser ?? "default"));
         }
     }
 }

@@ -26,6 +26,7 @@ public sealed class RedisServer
             Socket client = await listener.AcceptSocketAsync();
             Console.Error.WriteLine("Client connected!");
 
+
             _ = Task.Run(() => _clientHandler.HandleAsync(client));
         }
     }

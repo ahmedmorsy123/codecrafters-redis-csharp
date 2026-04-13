@@ -1,4 +1,5 @@
 using codecrafters_redis.src.Client;
+using codecrafters_redis.src.Security;
 using System.Net.Sockets;
 using System.Text;
 
@@ -17,6 +18,8 @@ public sealed class ClientConnectionHandler
     {
         var buffer = new byte[1024];
         var session = new ClientSession { ClientSocket = client };
+        session.IsAuthenticated = UsersManager.DefaultUserHasNoPassword();
+        session.AuthenticatedUser = "default";
 
         try
         {

@@ -72,6 +72,20 @@ namespace codecrafters_redis.src.Security
             }
         }
 
+        public static bool DefaultUserHasNoPassword()
+        {
+            lock (users)
+            {
+                var defaultUser = users.Find(u => u.Username.Equals("default", StringComparison.OrdinalIgnoreCase));
+                if (defaultUser == null)
+                {
+                    throw new InvalidOperationException("Default user not found.");
+                }
+                var passwordsProp = defaultUser.Properties.Find(p => p.property.Equals("passwords", StringComparison.OrdinalIgnoreCase));
+                return passwordsProp == null || passwordsProp.values.Length == 0;
+            }
+        }
+
         public static List<object> GetUserProperties(string username)
         {
             lock (users)
