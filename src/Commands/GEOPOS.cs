@@ -40,6 +40,8 @@ namespace codecrafters_redis.src.Commands
                 }
             }
 
+            Console.WriteLine($"result is {RespEncoder.EncodeArray(results)}");
+
             await session.SendStringAsync(RespEncoder.EncodeArray(results));
         }
     }
