@@ -23,6 +23,7 @@ public sealed class CommandDispatcher
         if (!session.IsAuthenticated)
         {
             await session.SendStringAsync(RespEncoder.EncodeError("NOAUTH Authentication required."));
+            return;
         }
 
         if (commands.Count == 0)
