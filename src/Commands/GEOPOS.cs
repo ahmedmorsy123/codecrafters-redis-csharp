@@ -3,6 +3,7 @@ using codecrafters_redis.src.RedisValues;
 using codecrafters_redis.src.Resp;
 using codecrafters_redis.src.Storage;
 using System.Globalization;
+using System.Text;
 
 
 namespace codecrafters_redis.src.Commands
@@ -15,7 +16,7 @@ namespace codecrafters_redis.src.Commands
 
         public async Task ExecuteAsync(string[] args, ClientSession session)
         {
-            if(args.Length <= 2)
+            if(args.Length < 2)
             {
                 await session.SendStringAsync("-ERR wrong number of arguments for 'GEOPOS' command\r\n");
                 return;
@@ -26,34 +27,27 @@ namespace codecrafters_redis.src.Commands
 
             RedisSortedSet? sortedSet = StoreProvider.Instance.Get<RedisSortedSet>(key);
 
-            List<object?> results = new List<object?>();
-
-            if (sortedSet == null)
-            {
-                for (int i = 0; i < members.Length; i++)
-                {
-                    results.Add(null);
-                }
-
-                await session.SendStringAsync(RespEncoder.EncodeArray(results));
-                return;
-            }
+            StringBuilder response = new StringBuilder();
+            response.Append('*').Append(members.Length).Append("\r\n");
 
             foreach (var member in members)
             {
-                var coordinates = sortedSet.GetCoordinates(member);
+                var coordinates = sortedSet?.GetCoordinates(member);
                 if (coordinates == null)
                 {
-                    results.Add(new object?[] { null, null });
+                    response.Append(RespEncoder.EncodeNullArray());
                 }
                 else
                 {
-                    results.Add(new[] { coordinates.Value.longitude.ToString(), coordinates.Value.latitude.ToString() });
+                    response.Append(RespEncoder.EncodeArray(new List<object?>
+                    {
+                        coordinates.Value.longitude.ToString(CultureInfo.InvariantCulture),
+                        coordinates.Value.latitude.ToString(CultureInfo.InvariantCulture)
+                    }));
                 }
             }
 
-
-            await session.SendStringAsync(RespEncoder.EncodeArray(results));
+            await session.SendStringAsync(response.ToString());
         }
     }
 }
