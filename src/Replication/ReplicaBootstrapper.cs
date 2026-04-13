@@ -7,7 +7,12 @@ namespace codecrafters_redis.src.Replication
         private static readonly Server.CommandDispatcher _dispatcher =
             new(Server.CommandHandlerRegistry.BuildFromAssembly(System.Reflection.Assembly.GetExecutingAssembly()));
 
-        private static readonly Client.ClientSession _session = new() { IsMasterConnection = true };
+        private static readonly Client.ClientSession _session = new()
+        {
+            IsMasterConnection = true,
+            IsAuthenticated = true,
+            AuthenticatedUser = "default"
+        };
 
         public static Task RunAsync(CancellationToken cancellationToken = default)
         {
